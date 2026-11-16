@@ -91,9 +91,10 @@ PowerShell 5.1:
 ```
 
 To toggle the controlled checkout fault during a local operator run, pass
-`-FaultEnabled $true` (and rerun with the default `-FaultEnabled $false` to
-restore healthy traffic). The hosted `deploy.yml` workflow always converges
-`fault_enabled=false` so merges to `main` leave the lab workload healthy.
+`-FaultEnabled` (or `-FaultEnabled:$true`, and rerun omitting `-FaultEnabled`
+or passing `-FaultEnabled:$false` to restore healthy traffic). The hosted
+`deploy.yml` workflow always converges `fault_enabled=false` so merges to `main`
+leave the lab workload healthy.
 
 ## Verification evidence
 
@@ -109,7 +110,7 @@ Static and mocked evidence:
   package directory cleanup on Terraform or data-plane failures, and summary
   generation.
 
-Live local evidence recorded **April 16, 2026**:
+Live local and hosted evidence recorded **November 16, 2026**:
 
 - `.\scripts\Bootstrap.ps1 -StateStorageAccountId ... -Apply -ConfigureGitHub`
   published `AZURE_OPERATOR_OBJECT_ID` to GitHub repository variables with zero
@@ -123,11 +124,11 @@ Live local evidence recorded **April 16, 2026**:
   reporting `Unchanged` for `skills/checkout-investigation`,
   `agents/checkout-investigator`, and
   `scheduledtasks/checkout-daily-investigation`.
-
-Remaining verification:
-
-- Hosted execution of `.github/workflows/deploy.yml` under GitHub OIDC runs on
-  `main` only and will execute automatically when the owner merges the Phase 5
-  pull request to `main`.
-- End-to-end live fault/investigation/recovery walkthrough and final operator
-  documentation remain Phase 6 work.
+- After the owner merged #6 (`ef75176`) to `main`, **Deploy checkout
+  environment** (`deploy.yml`, run `43942955764`) authenticated with GitHub OIDC
+  (`repo:christopherhouse@748998/Azure-SRE-Agent-Deployment-Automation@1457055905:ref:refs/heads/main`),
+  converged Terraform (`0 added, 0 changed, 0 destroyed`), and verified all
+  three SRE Agent data-plane assets (`Unchanged`) in 43 seconds while
+  serializing cleanly with `Verify keyless bootstrap` (`43942955681`).
+- See [demonstration.md](demonstration.md) for the Phase 6 live fault,
+  investigation, and recovery walkthrough.

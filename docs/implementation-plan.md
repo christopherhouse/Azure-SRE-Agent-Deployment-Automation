@@ -138,6 +138,11 @@ Document any integration that cannot meet the stated constraint.
 
 ## Phase 5: GitHub Actions delivery
 
+Implementation, workflow boundaries, and local/hosted verification evidence are
+in [delivery.md](delivery.md). Hosted OIDC end-to-end execution of
+`Deploy checkout environment` (`deploy.yml`) succeeded on November 16, 2026
+after the owner's merge of #6 (`ef75176`, run `43942955764`).
+
 1. On pull requests, run non-deploying checks for the changed Terraform,
    PowerShell, and workflow files. Do not expose Azure OIDC credentials or
    state to untrusted PR code, including forked PRs.
@@ -157,6 +162,10 @@ Document any integration that cannot meet the stated constraint.
 single environment end to end using federation, with no stored access keys.
 
 ## Phase 6: Demonstration and handoff
+
+End-to-end reproduction, controlled fault/investigation/recovery walkthrough,
+live evidence, troubleshooting, cost drivers, and safe cleanup are documented
+in [demonstration.md](demonstration.md).
 
 1. Exercise the controlled checkout fault and confirm relevant records appear in
    Log Analytics. Run the agent investigation and check that its answer uses
