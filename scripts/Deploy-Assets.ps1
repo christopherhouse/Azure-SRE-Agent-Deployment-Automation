@@ -45,7 +45,7 @@ if ($PackagePath) {
     }
     $assetRoot = $PackagePath
 }
-$assets = @(Get-CheckoutAsset -RepositoryRoot $assetRoot `
+$assets = @(Get-SreAgentAsset -RepositoryRoot $assetRoot `
     -SubscriptionId $account.id -ResourceGroup $ResourceGroup -WorkspaceId $workspaceId.ToString())
 $token = $null
 $headers = @{}
@@ -55,7 +55,7 @@ try {
         '--query', 'accessToken', '-o', 'tsv', '--only-show-errors')) -join '').Trim()
     if (-not $token) { throw 'Azure CLI returned an empty data-plane token.' }
     $headers.Authorization = "Bearer $token"
-    Sync-CheckoutAsset -Endpoint $endpoint.AbsoluteUri.TrimEnd('/') -Headers $headers -Assets $assets
+    Sync-SreAgentAsset -Endpoint $endpoint.AbsoluteUri.TrimEnd('/') -Headers $headers -Assets $assets
 }
 finally {
     $headers.Clear()

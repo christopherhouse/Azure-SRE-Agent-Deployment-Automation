@@ -1,0 +1,15 @@
+{
+  "name": "checkout-daily-investigation",
+  "type": "ScheduledTask",
+  "properties": {
+    "description": "Optional daily synthetic checkout investigation; paused until deliberately activated in Git.",
+    "cronExpression": "0 14 * * *",
+    "agentPrompt": "",
+    "agent": "checkout-investigator",
+    "agentMode": "Review",
+    "status": "Paused"
+  },
+  "contentFiles": {
+    "agentPrompt": "prompt.md"
+  }
+}

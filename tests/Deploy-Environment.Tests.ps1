@@ -2,7 +2,7 @@ BeforeAll {
     $script:root = Split-Path $PSScriptRoot -Parent
     $script:scriptsDir = Join-Path $TestDrive 'scripts'
     Copy-Item -LiteralPath (Join-Path $script:root 'scripts') -Destination $script:scriptsDir -Recurse
-    Copy-Item -LiteralPath (Join-Path $script:root 'assets') -Destination (Join-Path $TestDrive 'assets') -Recurse
+    Copy-Item -LiteralPath (Join-Path $script:root 'sre-agent') -Destination (Join-Path $TestDrive 'sre-agent') -Recurse
     Copy-Item -LiteralPath (Join-Path $script:root 'sample') -Destination (Join-Path $TestDrive 'sample') -Recurse
     $script:environmentDir = Join-Path (Join-Path $TestDrive 'infra') 'environment'
     New-Item -ItemType Directory -Path $script:environmentDir -Force | Out-Null
@@ -113,7 +113,7 @@ Describe 'End-to-end environment and data-plane orchestration' {
             $trace = Join-Path $TestDrive 'trace.log'
             Add-Content -LiteralPath $trace -Value "http:$Method"
             . (Join-Path (Join-Path $TestDrive 'scripts') 'DataPlane.ps1')
-            $expectedAssets = @(Get-CheckoutAsset -RepositoryRoot $TestDrive `
+            $expectedAssets = @(Get-SreAgentAsset -RepositoryRoot $TestDrive `
                 -SubscriptionId '11111111-1111-1111-1111-111111111111' `
                 -ResourceGroup 'rg-sre-checkout-westus3' `
                 -WorkspaceId '44444444-4444-4444-4444-444444444444')
@@ -188,7 +188,7 @@ Describe 'End-to-end environment and data-plane orchestration' {
         }
         Mock Invoke-WebRequest {
             . (Join-Path (Join-Path $TestDrive 'scripts') 'DataPlane.ps1')
-            $expectedAssets = @(Get-CheckoutAsset -RepositoryRoot $TestDrive `
+            $expectedAssets = @(Get-SreAgentAsset -RepositoryRoot $TestDrive `
                 -SubscriptionId '11111111-1111-1111-1111-111111111111' `
                 -ResourceGroup 'rg-sre-checkout-westus3' `
                 -WorkspaceId '44444444-4444-4444-4444-444444444444')

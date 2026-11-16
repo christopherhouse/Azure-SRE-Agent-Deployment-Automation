@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - assets/checkout/**
+      - sre-agent/**
       - infra/environment/**
       - sample/**
       - scripts/Common.ps1

@@ -14,7 +14,7 @@ account.
 | Target resource group, deployment UAMI, OIDC federation, and dedicated state container | Automated (operator bootstrap) | `scripts/Bootstrap.ps1` + `infra/bootstrap` using interactive Azure CLI and GitHub CLI (`gh`) |
 | Shared state storage account (`satfstatecmhcus`) | External prerequisite | Never declared, reconfigured, or deleted by Terraform or PowerShell; accessed only via container-scoped Entra Blob RBAC |
 | SRE Agent, Log Analytics workspace, monitoring UAMI, Container Apps workload, and RBAC | Automated (local or `main` CI) | `scripts/Deploy-Environment.ps1` + `infra/environment` using Entra Blob state auth and Azure CLI locally or GitHub OIDC in `.github/workflows/deploy.yml` |
-| Investigation skill (`checkout-investigation`), subagent (`checkout-investigator`), and scheduled task (`checkout-daily-investigation`) | Automated (local or `main` CI) | `scripts/Deploy-Environment.ps1` -> `New-CheckoutAssetPackage` -> `scripts/Deploy-Assets.ps1` against the agent data plane (`https://azuresre.dev` audience) |
+| Investigation skill (`checkout-investigation`), subagent (`checkout-investigator`), and scheduled task (`checkout-daily-investigation`) | Automated (local or `main` CI) | `scripts/Deploy-Environment.ps1` -> `New-SreAgentAssetPackage` -> `scripts/Deploy-Assets.ps1` against the agent data plane (`https://azuresre.dev` audience) |
 | Source context for `sample/checkout.py` | Automated snapshot + optional manual OAuth | `Deploy-Assets.ps1` bundles the version-controlled `sample/checkout.py` and its SHA-256 into `checkout-investigation`. Live GitHub repository reads require one-time interactive operator OAuth consent in the SRE Agent portal |
 | Scheduled investigation trigger (`checkout-daily-investigation`) | Automated (reconciled `Paused` by default) | Reconciled via the SRE Agent v2 scheduled-tasks API (`Review` mode, cron `0 14 * * *` UTC). Can be resumed via the portal/API or set to `Active` in Git |
 | External HTTP webhook / GitHub push trigger | Excluded by design | Current Microsoft documentation conflicts on whether external webhook routes are unauthenticated public URLs or require an Entra `AgentThreadWrite` bearer token, which GitHub webhooks cannot mint. No PAT, app private key, or public webhook URL is created |
@@ -76,7 +76,7 @@ $monitoringPrincipal = terraform -chdir=infra\environment output -raw monitoring
 ```
 
 From that point forward, every merge to `main` that touches `infra/environment/`,
-`sample/`, `assets/checkout/`, `scripts/`, or `.github/workflows/deploy.yml`
+`sample/`, `sre-agent/`, `scripts/`, or `.github/workflows/deploy.yml`
 automatically runs **Deploy checkout environment** (`deploy.yml`) using GitHub
 OIDC without a manual approval gate.
 
@@ -274,7 +274,7 @@ Executed on **November 16, 2026** against `rg-sre-checkout-westus3` (agent
 | `ContainerAppConsoleLogs` query returns `Failed to resolve table or column` or zero rows immediately after deploy/fault toggle | Azure Monitor diagnostic setting creation and Log Analytics ingestion take ~2–4 minutes | Wait 2–4 minutes and retry; verify live container emission with `az containerapp logs show -n ca-sre-checkout -g rg-sre-checkout-westus3 --tail 20` |
 | `Deploy-Environment.ps1` fails with `Cannot validate argument on parameter 'OperatorObjectId'` when toggling fault | Passing `-FaultEnabled $true` with a space binds `$true` positionally to `-OperatorObjectId` | Use `-FaultEnabled` (or `-FaultEnabled:$true`) to enable, and omit `-FaultEnabled` (or pass `-FaultEnabled:$false`) to disable |
 | `Deploy-Assets.ps1` refuses an existing skill, subagent, or scheduled task | Object lacks `managed-by:checkout-reliability-lab` tag (or description suffix on scheduled tasks) | Inspect the object in the portal to confirm provenance; restore the marker or remove the conflicting unmanaged object before rerunning |
-| Data-plane PUT returns HTTP 202 and read-back fails convergence | Service accepted the asynchronous write, or a preview property was dropped by the backend | Wait briefly and rerun `Deploy-Assets.ps1`; if convergence still fails, compare the GET payload against `assets/checkout/assets.json` |
+| Data-plane PUT returns HTTP 202 and read-back fails convergence | Service accepted the asynchronous write, or a preview property was dropped by the backend | Wait briefly and rerun `Deploy-Assets.ps1`; if convergence still fails, compare the GET payload against the corresponding manifest under `sre-agent/<kind>/<name>/` |
 | Hosted `deploy.yml` fails on role assignment write/delete after monitoring UAMI replacement | Bootstrap conditioned RBAC delegation (`environment_rbac[0]`) is pinned to the previous monitoring principal ID | Run `.\scripts\Bootstrap.ps1 -StateStorageAccountId <id> -MonitoringPrincipalId <new-guid> -Apply` as the interactive operator |
 | Azure CLI or MCP tool queries fail with tenant/subscription mismatch | Tool session is signed into a different Entra tenant than the target subscription | Pass `--tenant <AZURE_TENANT_ID>` or run `az login --tenant <AZURE_TENANT_ID>` and `az account set --subscription <AZURE_SUBSCRIPTION_ID>` |
 

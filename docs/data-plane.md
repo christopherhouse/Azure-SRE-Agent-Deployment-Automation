@@ -16,9 +16,29 @@ not part of either reconciliation loop.
 | GitHub source connection | Operator / interactive OAuth | GitHub account authorized in Code access | Not overwritten or adopted by the deployment |
 | HTTP webhook | Not deployed | No identity/exposure contract assumed | Not applicable |
 
-Definitions and prompts are under `assets/checkout/`. The deployment renders
-workspace/subscription/RG context into the Markdown and bundles the checked-out
-`sample/checkout.py` text plus its SHA-256 into the skill. This is a labeled
+Definitions and prompts live under `sre-agent/`, organized by SRE Agent
+data-plane resource kind rather than by a single scenario folder:
+
+| Kind directory | `/api/v2/extendedAgent/<kind>` | Envelope `type` | Resource manifest | Deployed examples |
+| --- | --- | --- | --- | --- |
+| `sre-agent/connectors/<name>/` | `connectors` | `DataConnector` | `connector.json` | *(optional — created when needed)* |
+| `sre-agent/skills/<name>/` | `skills` | `Skill` | `skill.json` + `SKILL.md` | `checkout-investigation` |
+| `sre-agent/agents/<name>/` | `agents` | `ExtendedAgent` | `agent.json` + `instructions.md` | `checkout-investigator` |
+| `sre-agent/scheduled-tasks/<name>/` | `scheduledtasks` | `ScheduledTask` | `task.json` + `prompt.md` | `checkout-daily-investigation` |
+| `sre-agent/hooks/<name>/` | `hooks` | `Hook` | `hook.json` | *(optional — created when needed)* |
+
+`sre-agent/manifest.json` declares `schemaVersion: 1`, the repository ownership
+marker (`managed-by:checkout-reliability-lab`), the bundled `sourcePath`
+(`sample/checkout.py`), and the topological kind registry (`connectors` ->
+`skills` -> `agents` -> `scheduledtasks` -> `hooks`). Adding a new skill,
+subagent, scheduled task, connector, or hook requires only adding a new
+`<name>/` subdirectory under the corresponding kind folder—no changes to
+PowerShell scripts or GitHub Actions workflows are needed.
+
+During rendering, `Get-SreAgentAsset` (`scripts/DataPlane.ps1`) substitutes
+workspace/subscription/RG context into Markdown files referenced by
+`contentFiles` and bundles the checked-out `sample/checkout.py` text plus its
+SHA-256 into `{{SourceSnapshot}}`. This is a labeled
 source snapshot, not evidence of live GitHub access or the running revision's
 source. Prompts require telemetry/source correlation, bounded KQL queries,
 revision-aware order IDs, explicit evidence gaps and operator-only recovery.
@@ -27,8 +47,10 @@ revision-aware order IDs, explicit evidence gaps and operator-only recovery.
 the agent endpoint from ARM using the environment's pinned `2026-01-01` API.
 It resolves the workspace customer ID from the same RG using `2025-07-01`.
 It does not read remote state, change subscriptions, assign roles or modify
-the shared state account. `scripts/DataPlane.ps1` renders definitions and
-performs the three-resource reconciliation.
+the shared state account. `scripts/DataPlane.ps1` discovers the `sre-agent/`
+resource tree in dependency order, validates directory-to-name matching and
+cross-references (`allowedSkills` -> `skills/<name>`, `scheduledtasks.agent` ->
+`agents/<name>`), and reconciles every discovered resource.
 
 The script obtains a short-lived Entra token for `https://azuresre.dev` from
 the current Azure CLI session. Bearers stay in memory, are never passed in
@@ -71,13 +93,13 @@ identify the name. The default RG is `rg-sre-checkout-westus3`. Successful
 output is only `Configured kind/name` or `Unchanged kind/name`; prompts,
 service response bodies, tokens and generated URLs are not printed.
 
-Run the same command again. It must report all three assets unchanged. An
+Run the same command again. It must report all discovered assets unchanged. An
 owned property change is reconciled with PUT and verified by GET; unrelated
 service-generated properties are not considered drift. Array order, string
 case and boolean types are checked. Do not edit the same objects concurrently;
 the API contract used here does not provide conditional-write guarantees.
 Phase 5 serializes trusted deployments and stages the versioned assets through
-`New-CheckoutAssetPackage` before invoking `Deploy-Assets.ps1 -PackagePath`; see
+`New-SreAgentAssetPackage` before invoking `Deploy-Assets.ps1 -PackagePath`; see
 [delivery.md](delivery.md).
 
 The task is deliberately **Paused**, with a daily `0 14 * * *` UTC schedule.
