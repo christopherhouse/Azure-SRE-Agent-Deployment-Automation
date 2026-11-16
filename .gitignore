@@ -1,0 +1,52 @@
+# Terraform: commit .terraform.lock.hcl, never local state or plans.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+plan.out
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Local authentication, environment settings, and certificates.
+.env
+.env.*
+!.env.example
+.azure/
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Generated packages, logs, test results, and local tools.
+artifacts/
+TestResults/
+coverage/
+*.coverage.xml
+*.trx
+*.log
+*.zip
+*.nupkg
+.tools/
+*.tmp
+*.bak
+
+# Editor and operating-system state.
+.vs/
+.vscode/
+*.code-workspace
+*.swp
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
