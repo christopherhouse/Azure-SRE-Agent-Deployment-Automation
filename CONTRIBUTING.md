@@ -95,8 +95,9 @@ or enable auto-merge. Use a **merge commit**, not squash or rebase. `main`
 requires a PR and applies protection to administrators; force pushes and branch
 deletion are disabled. No approving review is currently mandated.
 
-Required checks are **Workflow validation** and **Secret scan**. Do not rename
-their job names or add path filters without coordinating branch protection:
+Required checks are **Workflow validation** and **Secret scan**. PR branches
+must be up to date with `main` before merging. Do not rename their job names or
+add path filters without coordinating branch protection:
 both checks must run on every PR, including documentation-only changes. Add
 new required checks only after observing them run successfully on a PR.
 
