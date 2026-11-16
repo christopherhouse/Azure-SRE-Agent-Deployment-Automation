@@ -30,11 +30,14 @@ matching Windows archives locally. Upstream documentation:
 - [actionlint installation and usage](https://github.com/rhysd/actionlint)
 - [Gitleaks installation and usage](https://github.com/gitleaks/gitleaks)
 
-For Phase 2, use Terraform **1.15.2**, PSScriptAnalyzer **1.24.0** and Pester
+For infrastructure work, use Terraform **1.15.2**, PSScriptAnalyzer **1.24.0** and Pester
 **5.7.1**. AzureRM **5.14.0** and AzAPI **2.13.0** are exactly pinned with a
 committed Windows/Linux provider lock file. Static checks do not require Azure
 access. For live bootstrap prerequisites and ownership, see
-[bootstrap.md](docs/bootstrap.md).
+[bootstrap.md](docs/bootstrap.md). The Phase 3 sample uses only the Python
+standard library; Python 3.13 is pinned by image digest in the deployed worker.
+Use Python 3.13 locally, or a compatible Python 3 runtime for its unit tests.
+No package restore or Azure identity is needed for sample checks.
 
 ## Local checks
 
@@ -59,7 +62,7 @@ terraform -chdir=infra\bootstrap init -backend=false -input=false -lockfile=read
 if ($LASTEXITCODE -ne 0) { throw 'Bootstrap initialization failed.' }
 terraform -chdir=infra\bootstrap validate
 if ($LASTEXITCODE -ne 0) { throw 'Bootstrap validation failed.' }
-terraform -chdir=infra\environment init -backend=false -input=false
+terraform -chdir=infra\environment init -backend=false -input=false -lockfile=readonly
 if ($LASTEXITCODE -ne 0) { throw 'Environment initialization failed.' }
 terraform -chdir=infra\environment validate
 if ($LASTEXITCODE -ne 0) { throw 'Environment validation failed.' }
@@ -67,6 +70,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Environment validation failed.' }
 .\scripts\Test-Repository.ps1
 powershell.exe -NoProfile -File .\scripts\Test-Repository.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell validation failed.' }
+
+python -m unittest discover -s sample -p 'test_*.py'
+if ($LASTEXITCODE -ne 0) { throw 'Sample validation failed.' }
 ```
 
 The working-tree scan covers new files before committing; the history scan
@@ -82,6 +88,8 @@ fails on analyzer warnings/errors, failed tests, or zero passing tests.
 When updating provider pins, regenerate Windows/Linux checksums with
 `terraform -chdir=infra\bootstrap providers lock -platform=windows_amd64 -platform=linux_amd64`
 and commit the lock file. Backend-free checks never run plan/apply.
+The environment stack has its own committed lock file; run the equivalent
+`providers lock` command in `infra\environment` when changing its pins.
 
 ## Branch and pull request workflow
 
@@ -138,6 +146,8 @@ It is not a PR check and must not be required for PRs. The new static jobs are
 **Terraform validation**, **PowerShell (pwsh)**, and
 **PowerShell (Windows PowerShell 5.1)**; they are not added to branch protection
 in this phase. Existing required names are unchanged.
+**Sample validation** is also cloud-free and is not required by branch
+protection. Phase 3 adds no deployment job, Azure access to PRs, or approval gate.
 
 GitHub secret scanning and push protection are enabled. Keep merge commits
 enabled, squash/rebase disabled, and only real stable checks required. Repository

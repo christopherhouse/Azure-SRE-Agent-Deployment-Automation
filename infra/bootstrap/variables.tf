@@ -34,3 +34,13 @@ variable "github_subject_prefix" {
     error_message = "Supply a repo:owner/repository prefix, optionally containing immutable @IDs."
   }
 }
+
+variable "monitoring_principal_id" {
+  type        = string
+  default     = null
+  description = "Environment monitoring UAMI principal, supplied after the first operator-owned environment apply."
+  validation {
+    condition     = var.monitoring_principal_id == null ? true : can(regex("^[0-9a-fA-F-]{36}$", var.monitoring_principal_id))
+    error_message = "Supply the environment monitoring principal UUID, not its client or resource ID."
+  }
+}

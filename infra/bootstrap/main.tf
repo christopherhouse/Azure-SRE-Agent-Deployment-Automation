@@ -130,3 +130,51 @@ resource "azurerm_role_assignment" "deployment_resources" {
   principal_id         = azurerm_user_assigned_identity.deployment.principal_id
   principal_type       = "ServicePrincipal"
 }
+
+# The operator establishes this only after the environment identity exists.
+resource "azurerm_role_assignment" "environment_rbac" {
+  count                = var.monitoring_principal_id == null ? 0 : 1
+  name                 = uuidv5("url", "${azurerm_resource_group.target.id}/${azurerm_user_assigned_identity.deployment.principal_id}/environment-rbac")
+  scope                = azurerm_resource_group.target.id
+  role_definition_name = "Role Based Access Control Administrator"
+  principal_id         = azurerm_user_assigned_identity.deployment.principal_id
+  principal_type       = "ServicePrincipal"
+  condition_version    = "2.0"
+  condition            = <<-CONDITION
+    (
+      !(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})
+      OR
+      (
+        (
+          @Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {acdd72a7-3385-48ef-bd42-f606fba81ae7, 73c42c96-874c-492b-b04d-ab87d138a893}
+          AND
+          @Request[Microsoft.Authorization/roleAssignments:PrincipalId] GuidEquals ${var.monitoring_principal_id}
+        )
+        OR
+        (
+          @Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] GuidEquals e79298df-d852-4c6d-84f9-5d13249d1e55
+          AND
+          @Request[Microsoft.Authorization/roleAssignments:PrincipalId] ForAnyOfAnyValues:GuidEquals {${azurerm_user_assigned_identity.deployment.principal_id}, ${var.operator_object_id}}
+        )
+      )
+    )
+    AND
+    (
+      !(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})
+      OR
+      (
+        (
+          @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {acdd72a7-3385-48ef-bd42-f606fba81ae7, 73c42c96-874c-492b-b04d-ab87d138a893}
+          AND
+          @Resource[Microsoft.Authorization/roleAssignments:PrincipalId] GuidEquals ${var.monitoring_principal_id}
+        )
+        OR
+        (
+          @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] GuidEquals e79298df-d852-4c6d-84f9-5d13249d1e55
+          AND
+          @Resource[Microsoft.Authorization/roleAssignments:PrincipalId] ForAnyOfAnyValues:GuidEquals {${azurerm_user_assigned_identity.deployment.principal_id}, ${var.operator_object_id}}
+        )
+      )
+    )
+  CONDITION
+}
