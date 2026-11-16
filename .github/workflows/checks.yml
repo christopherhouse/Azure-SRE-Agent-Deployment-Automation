@@ -36,8 +36,20 @@ jobs:
           terraform fmt -check -recursive infra
           terraform -chdir=infra/bootstrap init -backend=false -input=false -lockfile=readonly
           terraform -chdir=infra/bootstrap validate
-          terraform -chdir=infra/environment init -backend=false -input=false
+          terraform -chdir=infra/environment init -backend=false -input=false -lockfile=readonly
           terraform -chdir=infra/environment validate
+
+  sample-validation:
+    name: Sample validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Test synthetic checkout behavior
+        run: python3 -m unittest discover -s sample -p 'test_*.py'
 
   powershell-validation:
     name: PowerShell (${{ matrix.edition }})

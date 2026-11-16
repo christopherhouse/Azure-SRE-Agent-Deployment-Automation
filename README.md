@@ -4,9 +4,11 @@ A keyless, Git-driven Azure SRE Agent example built around **Checkout Reliabilit
 Lab**: a small, deliberately faultable checkout workload, structured telemetry,
 and an evidence-based agent investigation.
 
-**Status:** Phase 2 identity/state bootstrap implemented and locally exercised.
-The main-only hosted OIDC verification awaits owner merge. The SRE Agent,
-sample workload and end-to-end deployment remain later-phase work.
+**Status:** Phase 2 keyless bootstrap verified locally and by the trusted hosted
+workflow. Phase 3 infrastructure and synthetic checkout workload are
+deployed and locally verified, including agent workspace queries and
+fault/recovery telemetry; see the environment guide for evidence and limits.
+Data-plane assets and end-to-end CI deployment remain later-phase work.
 
 ## Start here
 
@@ -16,6 +18,8 @@ sample workload and end-to-end deployment remain later-phase work.
 - [Contributing](CONTRIBUTING.md): local setup, checks, and the branch/PR workflow.
 - [Identity and state bootstrap](docs/bootstrap.md): ownership, commands,
   permissions, recovery, live evidence and remaining verification.
+- [Environment and checkout lab](docs/environment.md): infrastructure ownership,
+  local deployment, constrained CI RBAC, telemetry and controlled fault.
 
 ## Deployment contract
 
@@ -40,7 +44,8 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | --- | --- |
 | `docs/` | Charter, phased plan, and future operator documentation |
 | `infra/bootstrap/` | Operator-run local-state Terraform: RG, CI identity, federation and scoped state access |
-| `infra/environment/` | Entra Blob backend; workload infrastructure arrives in Phase 3 |
+| `infra/environment/` | Entra Blob backend, agent, monitoring, private worker and scoped RBAC |
+| `sample/` | Dependency-free synthetic checkout worker and unit tests |
 | `scripts/` | PowerShell bootstrap orchestration, backend/probe helpers and local checks |
 | `tests/` | Cloud-free mocked Pester tests |
 | `.github/copilot-instructions.md` | Shared project guidance for Copilot |
@@ -48,14 +53,15 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | `.github/workflows/checks.yml` | Non-deploying workflow validation and secret detection |
 | `.github/workflows/verify-bootstrap.yml` | Trusted main-only OIDC, ARM and Blob/backend verification |
 
-Create `assets/` and `sample/` when their first implementation files are added;
-empty placeholder directories are intentionally omitted.
+Create `assets/` when Phase 4 assets are added; empty placeholder directories
+are intentionally omitted.
 
 ## Initial checks
 
 Every PR to `main` and push to `main` runs **Workflow validation** (actionlint)
 and **Secret scan** (Gitleaks), plus **Terraform validation** and PowerShell
-analysis/mocked tests on hosted `pwsh` and Windows PowerShell 5.1. No Azure
+analysis/mocked tests on hosted `pwsh` and Windows PowerShell 5.1, and
+**Sample validation** for the Python worker. No Azure
 identity or repository secrets are provided to PR checks. The separate trusted
 bootstrap verification workflow never runs on PRs.
 

@@ -83,6 +83,15 @@ Describe 'Bootstrap ownership and failure handling' {
         Should -Invoke az -Times 0 -Exactly -ParameterFilter { $args -contains 'create' }
     }
 
+    It 'preserves explicit environment RBAC delegation on subsequent bootstrap runs' {
+        $principal = '33333333-3333-3333-3333-333333333333'
+        & $script:bootstrap -StateStorageAccountId $script:accountId -MonitoringPrincipalId $principal
+        & $script:bootstrap -StateStorageAccountId $script:accountId
+        $settings = Get-Content (Join-Path $script:bootstrapDirectory 'bootstrap.auto.tfvars.json') -Raw | ConvertFrom-Json
+        $settings.monitoring_principal_id | Should -Be $principal
+        Should -Invoke terraform -Times 0 -Exactly -ParameterFilter { $args -contains 'apply' }
+    }
+
     It 'fails before planning when shared-account networking blocks hosted runners' {
         Mock az { '{"name":"teststate","publicNetworkAccess":"Disabled","networkRuleSet":{"defaultAction":"Deny"}}' } -ParameterFilter {
             ($args -join ' ') -match '^storage account show'

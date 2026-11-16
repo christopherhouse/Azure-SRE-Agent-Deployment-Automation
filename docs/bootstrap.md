@@ -1,6 +1,6 @@
 # Phase 2: identity and state bootstrap
 
-The bootstrap creates seven Terraform-owned objects: one resource group in
+The initial bootstrap creates seven Terraform-owned objects: one resource group in
 West US 3, a GitHub deployment UAMI, its main-branch federated credential, one
 private state container, and three role assignments. It does not create an SRE
 Agent, workload, or agent data-plane assets.
@@ -20,10 +20,11 @@ Agent, workload, or agent data-plane assets.
 | Agent monitoring, GitHub source connection and investigation triggers | Not applicable yet | Separate identities/permissions in later phases | Not implemented or claimed |
 
 The bootstrap identity and the eventual monitoring UAMI are different objects.
-CI receives **Contributor only on the target RG**, not subscription Owner,
-User Access Administrator, state-account Contributor, or role-assignment write.
-Phase 3 must resolve any necessary restricted RBAC delegation before adding
-monitoring role assignments; Contributor does not grant that ability.
+Initially CI receives **Contributor only on the target RG**, not subscription
+Owner, User Access Administrator, state-account Contributor or role-assignment
+write. Phase 3 adds an optional operator-established, conditioned RBAC
+delegation for exact environment roles/principals, described in
+[environment.md](environment.md). Contributor itself cannot assign roles.
 
 Bootstrap-owned objects must not also be declared in `infra/environment`.
 Phase 3 looks up the existing RG instead of creating or importing it again.
@@ -127,7 +128,7 @@ only that run's named probe after its finite lease expires.
 
 ## Trusted hosted verification
 
-After the owner merges this PR, `Verify keyless bootstrap` runs on a relevant
+After the owner merges bootstrap changes, `Verify keyless bootstrap` runs on a relevant
 push to `main`, or can be dispatched **on main**. It has no environment approval
 gate. Only its Azure job receives `id-token: write`; PR checks remain cloud-free,
 credential-free and backend-free, including forked PRs. Deployment concurrency
@@ -154,7 +155,8 @@ Keep the local bootstrap state and settings together. Do not initialize a
 second bootstrap in another checkout and apply against the same objects.
 An existing unmanaged object is an import/recovery decision, not permission
 to overwrite it. If state is lost, inventory exact IDs and verify ownership
-before importing all seven objects into the one bootstrap stack:
+before importing the initial seven objects, plus the optional Phase 3
+delegation if established, into the one bootstrap stack:
 
 | Terraform address | Import ID |
 | --- | --- |
@@ -165,6 +167,7 @@ before importing all seven objects into the one bootstrap stack:
 | `azurerm_role_assignment.deployment_resources` | Full existing RG role-assignment ARM ID |
 | `azurerm_role_assignment.deployment_state` | Full existing container role-assignment ARM ID |
 | `azurerm_role_assignment.operator_state` | Full existing container role-assignment ARM ID |
+| `azurerm_role_assignment.environment_rbac[0]` (optional Phase 3 extension) | Full existing RG delegation role-assignment ARM ID |
 
 Use `terraform -chdir=infra\bootstrap import <address> <full-id>`, checking each
 exit code, then review a normal plan before applying. Role-assignment IDs can
@@ -200,8 +203,17 @@ selection, repeated orchestration, blocked networking, cross-tenant rejection,
 native apply failures, GitHub subject handling, CLI/OIDC backend flags, PR
 rejection, forbidden credentials and probe cleanup. This does not prove
 federation or hosted networking. Hosted OIDC/ARM/Blob/backend verification is
-pending owner merge; agent-endpoint verification is deferred to Phase 3.
-Phase 2's hosted completion criterion is not claimed before that job succeeds.
+verified by run `43915056852` on merged `main` commit `fda1b8f` on November 16,
+2026: its `Keyless backend access` job succeeded. Agent-endpoint verification
+remains separate Phase 3 evidence.
+
+Phase 3 extends bootstrap with the optional
+`azurerm_role_assignment.environment_rbac[0]`. It is created only after the
+operator supplies the monitoring UAMI principal. This brings bootstrap to eight
+managed objects, without changing ownership of the original seven or the
+external account. Its import ID is the full existing RG role-assignment ARM ID.
+The exact conditioned write/delete boundary and repeat commands are in the
+environment guide.
 
 ## Primary contracts
 

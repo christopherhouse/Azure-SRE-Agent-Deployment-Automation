@@ -38,8 +38,8 @@ instructions, repository settings, and initial checks agree with each other.
 ## Phase 2: Identity, state, and deployment bootstrap
 
 Implementation and local live evidence are in [bootstrap.md](bootstrap.md).
-The trusted hosted OIDC completion check awaits the owner's merge; do not mark
-Phase 2 fully verified until that workflow succeeds. The bootstrap Terraform
+The trusted hosted OIDC completion check succeeded on November 16, 2026 after
+the owner's merge of #3 (run `43915056852`). The bootstrap Terraform
 stack owns the target RG, deployment identity/federation, dedicated container
 and bootstrap role assignments; the environment stack must not duplicate them.
 
@@ -71,6 +71,13 @@ workflow can authenticate and access its state container without a key or
 client secret. The state account itself remains externally owned.
 
 ## Phase 3: Terraform infrastructure and sample workload
+
+Implementation, ownership, local operations and verification evidence are in
+[environment.md](environment.md). Do not equate static validation with a
+running agent, ingested telemetry or effective managed-identity query access.
+On November 16, 2026, the operator applied the environment, verified a running
+agent and worker, agent-executed workspace queries, fault/recovery ingestion
+and zero-drift repeat plans. Hosted environment deployment remains Phase 5.
 
 1. Define direct Azure provider resources, using AzAPI where required for
    supported SRE Agent ARM resources. Pin and lock provider dependencies.

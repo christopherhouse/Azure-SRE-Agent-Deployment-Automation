@@ -8,6 +8,9 @@ param(
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
     [string] $Repository = 'christopherhouse/Azure-SRE-Agent-Deployment-Automation',
 
+    [ValidatePattern('^[0-9a-fA-F-]{36}$')]
+    [string] $MonitoringPrincipalId,
+
     [switch] $Apply,
     [switch] $ConfigureGitHub
 )
@@ -62,6 +65,15 @@ $variables = @{
 }
 $directory = Join-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'infra') 'bootstrap'
 $settings = Join-Path $directory 'bootstrap.auto.tfvars.json'
+if ($PSBoundParameters.ContainsKey('MonitoringPrincipalId')) {
+    $variables.monitoring_principal_id = $MonitoringPrincipalId
+}
+elseif (Test-Path -LiteralPath $settings) {
+    $previous = Get-Content -LiteralPath $settings -Raw | ConvertFrom-Json
+    if ($previous.PSObject.Properties.Name -contains 'monitoring_principal_id') {
+        $variables.monitoring_principal_id = $previous.monitoring_principal_id
+    }
+}
 $variables | ConvertTo-Json | Set-Content -LiteralPath $settings -Encoding ASCII
 Write-Information "Target: $($account.id); tenant: $($account.tenantId); region: westus3" -InformationAction Continue
 Write-Information "External state account subscription: $stateSubscription" -InformationAction Continue

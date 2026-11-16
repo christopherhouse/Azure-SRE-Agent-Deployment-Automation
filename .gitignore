@@ -40,6 +40,8 @@ coverage/
 .tools/
 *.tmp
 *.bak
+__pycache__/
+*.pyc
 
 # Editor and operating-system state.
 .vs/
