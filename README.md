@@ -10,7 +10,10 @@ deployed and locally verified, including agent workspace queries and
 fault/recovery telemetry; see the environment guide for evidence and limits.
 Phase 4 checkout investigation assets are deployed and repeat-run verified
 locally. GitHub OAuth requires operator consent; webhook delivery is not
-implemented. End-to-end hosted deployment remains Phase 5 work.
+implemented. Phase 5 end-to-end deployment orchestration (`Deploy-Environment.ps1`)
+and the trusted `main`-only GitHub Actions delivery workflow (`deploy.yml`) are
+implemented and locally verified; hosted `deploy.yml` execution runs upon merge
+to `main`.
 
 ## Start here
 
@@ -24,6 +27,8 @@ implemented. End-to-end hosted deployment remains Phase 5 work.
   local deployment, constrained CI RBAC, telemetry and controlled fault.
 - [Data-plane assets](docs/data-plane.md): versioned investigation, PowerShell
   reconciliation, ownership, local evidence and integration limitations.
+- [GitHub Actions delivery](docs/delivery.md): ordered environment + data-plane
+  orchestrator, deterministic asset packaging, and trusted `main`-only CI/CD.
 
 ## Deployment contract
 
@@ -57,6 +62,7 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | `.github/skills/deployment-contract-review/` | On-demand deployment ownership and authentication review |
 | `.github/workflows/checks.yml` | Non-deploying workflow validation and secret detection |
 | `.github/workflows/verify-bootstrap.yml` | Trusted main-only OIDC, ARM and Blob/backend verification |
+| `.github/workflows/deploy.yml` | Trusted main-only environment and SRE Agent data-plane deployment |
 
 ## Initial checks
 
@@ -65,7 +71,7 @@ and **Secret scan** (Gitleaks), plus **Terraform validation** and PowerShell
 analysis/mocked tests on hosted `pwsh` and Windows PowerShell 5.1, and
 **Sample validation** for the Python worker. No Azure
 identity or repository secrets are provided to PR checks. The separate trusted
-bootstrap verification workflow never runs on PRs.
+bootstrap verification and environment deployment workflows never run on PRs.
 
 The repository also enables GitHub secret scanning and push protection. These
 are complementary safeguards, not proof that arbitrary content is safe to commit.

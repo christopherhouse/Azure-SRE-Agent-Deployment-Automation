@@ -40,8 +40,9 @@ Use Python 3.13 locally, or a compatible Python 3 runtime for its unit tests.
 No package restore or Azure identity is needed for sample checks.
 Phase 4 assets use JSON and Markdown without additional dependencies.
 `Test-Repository.ps1` discovers their cloud-free deployment tests automatically;
-see [data-plane.md](docs/data-plane.md) for separate live verification. Never
-invoke `Deploy-Assets.ps1` from a PR check.
+see [data-plane.md](docs/data-plane.md) and [delivery.md](docs/delivery.md) for
+separate live verification. Never invoke `Deploy-Assets.ps1` or
+`Deploy-Environment.ps1` from a PR check.
 
 ## Local checks
 
@@ -143,15 +144,16 @@ dispatch. PR jobs must not request Azure OIDC, receive secrets, access Terraform
 state, or deploy; do not switch to `pull_request_target` to execute PR content.
 No reports or generated artifacts are uploaded.
 
-The separate `verify-bootstrap.yml` workflow runs only on trusted `main`
-pushes/dispatches. Its sole Azure job receives `id-token: write` for OIDC and
-verifies ARM, Blob and backend access without deploying the environment.
-It is not a PR check and must not be required for PRs. The new static jobs are
-**Terraform validation**, **PowerShell (pwsh)**, and
-**PowerShell (Windows PowerShell 5.1)**; they are not added to branch protection
-in this phase. Existing required names are unchanged.
-**Sample validation** is also cloud-free and is not required by branch
-protection. Phase 3 adds no deployment job, Azure access to PRs, or approval gate.
+The separate `verify-bootstrap.yml` and `deploy.yml` workflows run only on
+trusted `main` pushes/dispatches and share the `sre-checkout-deployment`
+concurrency group (`cancel-in-progress: false`). Only their Azure jobs receive
+`id-token: write` for OIDC: `verify-bootstrap.yml` verifies ARM, Blob and
+backend access on bootstrap changes, while `deploy.yml` converges the Terraform
+environment and SRE Agent data-plane assets without a manual environment
+approval gate. Neither workflow is a PR check or required for PRs. The static
+jobs in `checks.yml` are **Terraform validation**, **PowerShell (pwsh)**,
+**PowerShell (Windows PowerShell 5.1)**, and **Sample validation**; existing
+required check names (**Workflow validation** and **Secret scan**) are unchanged.
 
 GitHub secret scanning and push protection are enabled. Keep merge commits
 enabled, squash/rebase disabled, and only real stable checks required. Repository

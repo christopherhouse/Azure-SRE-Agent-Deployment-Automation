@@ -16,7 +16,7 @@ Agent, workload, or agent data-plane assets.
 | Deployment Contributor assignment | `infra/bootstrap`, ARM | Operator role-assignment write; target RG only | Deterministic assignment name |
 | Deployment and operator Blob assignments | `infra/bootstrap`, ARM | Operator role-assignment write; dedicated container only | Deterministic assignment names |
 | `checkout.tfstate` | `infra/environment`, Entra Blob backend | Local CLI user or GitHub OIDC UAMI; container only | Backend locking, no key/SAS fallback |
-| GitHub repository variables | `Bootstrap.ps1`, GitHub API | Existing authenticated `gh` operator; repository administration | Set same eight non-secret variables from Terraform outputs |
+| GitHub repository variables | `Bootstrap.ps1`, GitHub API | Existing authenticated `gh` operator; repository administration | Set same nine non-secret variables from Terraform outputs |
 | Agent monitoring, GitHub source connection and investigation triggers | Not applicable yet | Separate identities/permissions in later phases | Not implemented or claimed |
 
 The bootstrap identity and the eventual monitoring UAMI are different objects.
@@ -86,8 +86,9 @@ $stateAccountId = '/subscriptions/<state-subscription>/resourceGroups/<state-rg>
 
 The default is plan-only. `-Apply` creates and applies a saved plan from the
 same invocation, with native failures terminating the run. `-ConfigureGitHub`
-requires `-Apply`; it sets the eight non-secret values in
-`infra/bootstrap/outputs.tf`. A failed variable update fails the run; rerun
+requires `-Apply`; it sets the nine non-secret values in
+`infra/bootstrap/outputs.tf` (including `AZURE_OPERATOR_OBJECT_ID` for Phase 5
+CI role-assignment preservation). A failed variable update fails the run; rerun
 the same command to finish partial configuration.
 
 The wrapper rejects credential/key environment variables and CLI argument

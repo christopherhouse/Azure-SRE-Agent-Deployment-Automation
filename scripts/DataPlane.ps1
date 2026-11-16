@@ -211,3 +211,49 @@ function Sync-CheckoutAsset {
         Write-Output "Configured $($item.Asset.Kind)/$($desired.name)"
     }
 }
+
+function New-CheckoutAssetPackage {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot,
+        [Parameter(Mandatory = $true)] [string] $DestinationPath
+    )
+
+    if (Test-Path -LiteralPath $DestinationPath) {
+        throw 'Asset package destination already exists; supply a clean staging path.'
+    }
+    $placeholderId = '00000000-0000-0000-0000-000000000000'
+    $preview = @(Get-CheckoutAsset -RepositoryRoot $RepositoryRoot `
+        -SubscriptionId $placeholderId -ResourceGroup 'rg-sre-checkout-westus3' -WorkspaceId $placeholderId)
+    if ($preview.Count -ne 3) {
+        throw 'Asset package validation failed to produce the expected three checkout assets.'
+    }
+    $sourceAssets = Join-Path (Join-Path $RepositoryRoot 'assets') 'checkout'
+    $sourceManifestPath = Join-Path $sourceAssets 'assets.json'
+    $manifest = Get-Content -LiteralPath $sourceManifestPath -Raw | ConvertFrom-Json
+    $targetAssets = Join-Path (Join-Path $DestinationPath 'assets') 'checkout'
+    $targetSample = Join-Path $DestinationPath 'sample'
+    New-Item -ItemType Directory -Path $targetAssets -Force | Out-Null
+    New-Item -ItemType Directory -Path $targetSample -Force | Out-Null
+    Copy-Item -LiteralPath $sourceManifestPath -Destination (Join-Path $targetAssets 'assets.json')
+    foreach ($asset in $manifest.assets) {
+        foreach ($property in $asset.contentFiles.PSObject.Properties) {
+            $fileName = [string] $property.Value
+            Copy-Item -LiteralPath (Join-Path $sourceAssets $fileName) -Destination (Join-Path $targetAssets $fileName)
+        }
+    }
+    $sampleSource = Join-Path (Join-Path $RepositoryRoot 'sample') 'checkout.py'
+    $stagedSample = Join-Path $targetSample 'checkout.py'
+    Copy-Item -LiteralPath $sampleSource -Destination $stagedSample
+    $verified = @(Get-CheckoutAsset -RepositoryRoot $DestinationPath `
+        -SubscriptionId $placeholderId -ResourceGroup 'rg-sre-checkout-westus3' -WorkspaceId $placeholderId)
+    if ($verified.Count -ne 3) {
+        throw 'Staged checkout asset package failed post-copy verification.'
+    }
+    return [pscustomobject]@{
+        PackagePath  = $DestinationPath
+        SourceSha256 = (Get-FileHash -LiteralPath $stagedSample -Algorithm SHA256).Hash.ToLowerInvariant()
+        AssetNames   = @($verified | ForEach-Object { "$($_.Kind)/$($_.Envelope.name)" })
+    }
+}

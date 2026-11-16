@@ -23,9 +23,10 @@ provider "azurerm" {
 }
 
 provider "azapi" {
-  subscription_id = var.target_subscription_id
-  tenant_id       = var.tenant_id
-  use_cli         = !var.use_oidc
-  use_oidc        = var.use_oidc
-  use_msi         = false
+  subscription_id            = var.target_subscription_id
+  tenant_id                  = var.tenant_id
+  skip_provider_registration = true
+  use_cli                    = !var.use_oidc
+  use_oidc                   = var.use_oidc
+  use_msi                    = false
 }

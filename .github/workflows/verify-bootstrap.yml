@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - infra/**
-      - scripts/**
+      - infra/bootstrap/**
+      - scripts/Bootstrap.ps1
+      - scripts/Test-StateAccess.ps1
       - .github/workflows/verify-bootstrap.yml
   workflow_dispatch:
 

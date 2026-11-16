@@ -76,7 +76,9 @@ owned property change is reconciled with PUT and verified by GET; unrelated
 service-generated properties are not considered drift. Array order, string
 case and boolean types are checked. Do not edit the same objects concurrently;
 the API contract used here does not provide conditional-write guarantees.
-Phase 5 must serialize trusted deployments.
+Phase 5 serializes trusted deployments and stages the versioned assets through
+`New-CheckoutAssetPackage` before invoking `Deploy-Assets.ps1 -PackagePath`; see
+[delivery.md](delivery.md).
 
 The task is deliberately **Paused**, with a daily `0 14 * * *` UTC schedule.
 To activate it, change `properties.status` to `Active` in the versioned task
