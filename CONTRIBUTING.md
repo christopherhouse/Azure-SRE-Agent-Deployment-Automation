@@ -30,9 +30,11 @@ matching Windows archives locally. Upstream documentation:
 - [actionlint installation and usage](https://github.com/rhysd/actionlint)
 - [Gitleaks installation and usage](https://github.com/gitleaks/gitleaks)
 
-No Terraform providers, Azure resources, PowerShell modules, or deployment
-identity are required yet. Later phases must add exact tool/provider/module
-versions and setup commands together with their implementation.
+For Phase 2, use Terraform **1.15.2**, PSScriptAnalyzer **1.24.0** and Pester
+**5.7.1**. AzureRM **5.14.0** and AzAPI **2.13.0** are exactly pinned with a
+committed Windows/Linux provider lock file. Static checks do not require Azure
+access. For live bootstrap prerequisites and ownership, see
+[bootstrap.md](docs/bootstrap.md).
 
 ## Local checks
 
@@ -50,6 +52,21 @@ if ($LASTEXITCODE -ne 0) { throw 'History secret scan failed.' }
 
 git diff --check
 if ($LASTEXITCODE -ne 0) { throw 'Whitespace check failed.' }
+
+terraform fmt -check -recursive infra
+if ($LASTEXITCODE -ne 0) { throw 'Terraform formatting failed.' }
+terraform -chdir=infra\bootstrap init -backend=false -input=false -lockfile=readonly
+if ($LASTEXITCODE -ne 0) { throw 'Bootstrap initialization failed.' }
+terraform -chdir=infra\bootstrap validate
+if ($LASTEXITCODE -ne 0) { throw 'Bootstrap validation failed.' }
+terraform -chdir=infra\environment init -backend=false -input=false
+if ($LASTEXITCODE -ne 0) { throw 'Environment initialization failed.' }
+terraform -chdir=infra\environment validate
+if ($LASTEXITCODE -ne 0) { throw 'Environment validation failed.' }
+
+.\scripts\Test-Repository.ps1
+powershell.exe -NoProfile -File .\scripts\Test-Repository.ps1
+if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell validation failed.' }
 ```
 
 The working-tree scan covers new files before committing; the history scan
@@ -57,10 +74,14 @@ matches CI's full-history check. Keep scans redacted and never upload reports
 containing credentials. CI disables actionlint's optional ShellCheck and
 pyflakes integrations too, so Windows and hosted validation use the same rules.
 
-Add Terraform formatting and backend-free validation when `infra/` exists.
-Add PSScriptAnalyzer and focused mocked Pester tests with the first PowerShell
-implementation, including Windows PowerShell 5.1 and hosted `pwsh` coverage.
-These are planned checks, not current prerequisites or existing test suites.
+Run `Test-Repository.ps1` in `pwsh`, then `powershell.exe` on Windows for 5.1.
+On a non-Windows host the second edition is covered by CI. If the pinned
+modules are missing, add `-InstallDependencies` once to each edition's command;
+it installs to CurrentUser, without requiring administrator access. The script
+fails on analyzer warnings/errors, failed tests, or zero passing tests.
+When updating provider pins, regenerate Windows/Linux checksums with
+`terraform -chdir=infra\bootstrap providers lock -platform=windows_amd64 -platform=linux_amd64`
+and commit the lock file. Backend-free checks never run plan/apply.
 
 ## Branch and pull request workflow
 
@@ -103,12 +124,20 @@ new required checks only after observing them run successfully on a PR.
 
 ## CI trust and settings
 
-`checks.yml` uses GitHub-hosted Ubuntu runners, immutable action revisions,
+`checks.yml` uses GitHub-hosted Ubuntu and Windows runners, immutable action revisions,
 checksum-verified validator releases, `contents: read`, and checkout without
 persisted credentials. It runs on `pull_request`, pushes to `main`, and manual
 dispatch. PR jobs must not request Azure OIDC, receive secrets, access Terraform
 state, or deploy; do not switch to `pull_request_target` to execute PR content.
 No reports or generated artifacts are uploaded.
+
+The separate `verify-bootstrap.yml` workflow runs only on trusted `main`
+pushes/dispatches. Its sole Azure job receives `id-token: write` for OIDC and
+verifies ARM, Blob and backend access without deploying the environment.
+It is not a PR check and must not be required for PRs. The new static jobs are
+**Terraform validation**, **PowerShell (pwsh)**, and
+**PowerShell (Windows PowerShell 5.1)**; they are not added to branch protection
+in this phase. Existing required names are unchanged.
 
 GitHub secret scanning and push protection are enabled. Keep merge commits
 enabled, squash/rebase disabled, and only real stable checks required. Repository

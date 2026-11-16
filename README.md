@@ -4,9 +4,9 @@ A keyless, Git-driven Azure SRE Agent example built around **Checkout Reliabilit
 Lab**: a small, deliberately faultable checkout workload, structured telemetry,
 and an evidence-based agent investigation.
 
-**Status:** repository bootstrap only. Infrastructure, the sample workload, and
-deployment commands arrive in later phases; nothing here currently deploys Azure
-resources.
+**Status:** Phase 2 identity/state bootstrap implemented and locally exercised.
+The main-only hosted OIDC verification awaits owner merge. The SRE Agent,
+sample workload and end-to-end deployment remain later-phase work.
 
 ## Start here
 
@@ -14,6 +14,8 @@ resources.
 - [Implementation plan](docs/implementation-plan.md): ordered phases and their
   completion criteria.
 - [Contributing](CONTRIBUTING.md): local setup, checks, and the branch/PR workflow.
+- [Identity and state bootstrap](docs/bootstrap.md): ownership, commands,
+  permissions, recovery, live evidence and remaining verification.
 
 ## Deployment contract
 
@@ -37,20 +39,25 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | Path | Purpose |
 | --- | --- |
 | `docs/` | Charter, phased plan, and future operator documentation |
+| `infra/bootstrap/` | Operator-run local-state Terraform: RG, CI identity, federation and scoped state access |
+| `infra/environment/` | Entra Blob backend; workload infrastructure arrives in Phase 3 |
+| `scripts/` | PowerShell bootstrap orchestration, backend/probe helpers and local checks |
+| `tests/` | Cloud-free mocked Pester tests |
 | `.github/copilot-instructions.md` | Shared project guidance for Copilot |
 | `.github/skills/deployment-contract-review/` | On-demand deployment ownership and authentication review |
 | `.github/workflows/checks.yml` | Non-deploying workflow validation and secret detection |
+| `.github/workflows/verify-bootstrap.yml` | Trusted main-only OIDC, ARM and Blob/backend verification |
 
-Create `infra/`, `assets/`, `scripts/`, `tests/`, and `sample/` when their first
-implementation files are added; see the plan for their responsibilities. Empty
-placeholder directories are intentionally omitted.
+Create `assets/` and `sample/` when their first implementation files are added;
+empty placeholder directories are intentionally omitted.
 
 ## Initial checks
 
 Every PR to `main` and push to `main` runs **Workflow validation** (actionlint)
-and **Secret scan** (Gitleaks). No Azure identity or repository secrets are
-provided. Terraform formatting/validation and PowerShell lint/Pester checks will
-be added alongside the code they validate, not as empty passing jobs.
+and **Secret scan** (Gitleaks), plus **Terraform validation** and PowerShell
+analysis/mocked tests on hosted `pwsh` and Windows PowerShell 5.1. No Azure
+identity or repository secrets are provided to PR checks. The separate trusted
+bootstrap verification workflow never runs on PRs.
 
 The repository also enables GitHub secret scanning and push protection. These
 are complementary safeguards, not proof that arbitrary content is safe to commit.

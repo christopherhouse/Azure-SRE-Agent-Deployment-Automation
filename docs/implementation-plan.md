@@ -37,6 +37,12 @@ instructions, repository settings, and initial checks agree with each other.
 
 ## Phase 2: Identity, state, and deployment bootstrap
 
+Implementation and local live evidence are in [bootstrap.md](bootstrap.md).
+The trusted hosted OIDC completion check awaits the owner's merge; do not mark
+Phase 2 fully verified until that workflow succeeds. The bootstrap Terraform
+stack owns the target RG, deployment identity/federation, dedicated container
+and bootstrap role assignments; the environment stack must not duplicate them.
+
 1. Inspect the active `az` subscription and confirm its tenant, target region,
    resource provider availability, and permissions. Do not equate it with the
    subscription that contains the supplied state account.
@@ -68,8 +74,9 @@ client secret. The state account itself remains externally owned.
 
 1. Define direct Azure provider resources, using AzAPI where required for
    supported SRE Agent ARM resources. Pin and lock provider dependencies.
-   Create the new resource group in West US 3, an SRE Agent, its required
-   identity resources, a workspace, and the minimum supporting resources.
+   Use the bootstrap-owned resource group in West US 3 (look it up, do not
+   redeclare it), and create an SRE Agent, its required monitoring identity
+   resources, a workspace, and the minimum supporting resources.
 2. Implement the Checkout Reliability Lab: a small, observable workload with
    synthetic traffic or a controlled fault that produces useful structured
    telemetry. Prefer the simplest supported hosting and logging approach that
