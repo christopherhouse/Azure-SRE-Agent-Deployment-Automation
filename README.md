@@ -57,7 +57,7 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | `infra/bootstrap/` | Operator-run local-state Terraform: RG, CI identity, federation and scoped state access |
 | `infra/environment/` | Entra Blob backend, agent, monitoring, private worker and scoped RBAC |
 | `sample/` | Dependency-free synthetic checkout worker and unit tests |
-| `assets/checkout/` | Investigation skill, custom agent, paused task and supporting prompts |
+| `sre-agent/` | Resource-typed SRE Agent GitOps definitions (`manifest.json`, `skills/`, `agents/`, `scheduled-tasks/`, plus optional `connectors/` and `hooks/`) |
 | `scripts/` | PowerShell bootstrap orchestration, backend/probe helpers and local checks |
 | `tests/` | Cloud-free mocked Pester tests |
 | `.github/copilot-instructions.md` | Shared project guidance for Copilot |

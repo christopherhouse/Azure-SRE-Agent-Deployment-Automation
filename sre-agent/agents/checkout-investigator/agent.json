@@ -1,0 +1,16 @@
+{
+  "name": "checkout-investigator",
+  "type": "ExtendedAgent",
+  "properties": {
+    "instructions": "",
+    "handoffDescription": "Read-only investigation of Checkout Reliability Lab failures, revisions, and recovery evidence.",
+    "handoffs": [],
+    "tools": ["RunAzCliReadCommands"],
+    "temperature": 0.2,
+    "enableSkills": true,
+    "allowedSkills": ["checkout-investigation"]
+  },
+  "contentFiles": {
+    "instructions": "instructions.md"
+  }
+}

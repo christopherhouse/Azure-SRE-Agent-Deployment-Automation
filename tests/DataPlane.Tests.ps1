@@ -15,9 +15,9 @@ BeforeAll {
     }
 }
 
-Describe 'Checkout asset rendering' {
+Describe 'SRE Agent resource tree discovery and rendering' {
     It 'renders valid envelopes, source snapshot and scoped prompts without unresolved tokens' {
-        $assets = @(Get-CheckoutAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
+        $assets = @(Get-SreAgentAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
         $assets.Count | Should -Be 3
         $skill = $assets[0].Envelope
@@ -47,9 +47,9 @@ Describe 'Checkout asset rendering' {
         Test-AgentValue $expected $actual | Should -BeFalse
     }
 
-    It 'packages only the versioned checkout manifest, prompt files and sample source into a clean directory' {
+    It 'packages only the versioned sre-agent resource tree, prompt files and sample source into a clean directory' {
         $destination = Join-Path $TestDrive ('pkg-' + [Guid]::NewGuid().ToString('N'))
-        $package = New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
+        $package = New-SreAgentAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
         $package.PackagePath | Should -Be $destination
         $package.SourceSha256 | Should -Match '^[a-f0-9]{64}$'
         $package.AssetNames | Should -Be @(
@@ -58,15 +58,50 @@ Describe 'Checkout asset rendering' {
             'scheduledtasks/checkout-daily-investigation'
         )
         $stagedFiles = @(Get-ChildItem -LiteralPath $destination -Recurse -File | ForEach-Object { $_.Name } | Sort-Object)
-        $stagedFiles | Should -Be @('agent.md', 'assets.json', 'automation.md', 'checkout.py', 'investigation.md')
-        $fromRepo = @(Get-CheckoutAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
+        $stagedFiles | Should -Be @(
+            'agent.json', 'checkout.py', 'instructions.md', 'manifest.json',
+            'prompt.md', 'skill.json', 'SKILL.md', 'task.json'
+        )
+        $fromRepo = @(Get-SreAgentAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
-        $fromPackage = @(Get-CheckoutAsset -RepositoryRoot $destination -SubscriptionId $script:subscription `
+        $fromPackage = @(Get-SreAgentAsset -RepositoryRoot $destination -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
         ($fromPackage | ConvertTo-Json -Depth 30 -Compress) |
             Should -Be ($fromRepo | ConvertTo-Json -Depth 30 -Compress)
-        { New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination } |
+        { New-SreAgentAssetPackage -RepositoryRoot $script:root -DestinationPath $destination } |
             Should -Throw '*already exists*'
+    }
+
+    It 'discovers additional SRE Agent resource kinds and multiple resources in topological order without script changes' {
+        $tempRepo = Join-Path $TestDrive ('multi-kind-' + [Guid]::NewGuid().ToString('N'))
+        Copy-Item -LiteralPath (Join-Path $script:root 'sre-agent') -Destination (Join-Path $tempRepo 'sre-agent') -Recurse
+        Copy-Item -LiteralPath (Join-Path $script:root 'sample') -Destination (Join-Path $tempRepo 'sample') -Recurse
+
+        $connectorDir = Join-Path $tempRepo 'sre-agent\connectors\azure-monitor-logs'
+        $extraSkillDir = Join-Path $tempRepo 'sre-agent\skills\zeta-latency-triage'
+        $hookDir = Join-Path $tempRepo 'sre-agent\hooks\critical-incident-hook'
+        New-Item -ItemType Directory -Path @($connectorDir, $extraSkillDir, $hookDir) -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $connectorDir 'connector.json') -Value '{"name":"azure-monitor-logs","type":"DataConnector","properties":{"dataConnectorType":"AzureMonitor"}}'
+        Set-Content -LiteralPath (Join-Path $extraSkillDir 'skill.json') -Value '{"name":"zeta-latency-triage","type":"Skill","properties":{"description":"Triage latency.","tools":["RunAzCliReadCommands"],"skillContent":""},"contentFiles":{"skillContent":"SKILL.md"}}'
+        Set-Content -LiteralPath (Join-Path $extraSkillDir 'SKILL.md') -Value 'Inspect workspace {{WorkspaceId}} in {{ResourceGroup}}.'
+        Set-Content -LiteralPath (Join-Path $hookDir 'hook.json') -Value '{"name":"critical-incident-hook","type":"Hook","properties":{"enabled":false}}'
+
+        $discovered = @(Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
+        @($discovered | ForEach-Object { "$($_.Kind)/$($_.Envelope.name)" }) | Should -Be @(
+            'connectors/azure-monitor-logs',
+            'skills/checkout-investigation',
+            'skills/zeta-latency-triage',
+            'agents/checkout-investigator',
+            'scheduledtasks/checkout-daily-investigation',
+            'hooks/critical-incident-hook'
+        )
+
+        Set-Content -LiteralPath (Join-Path $hookDir 'hook.json') -Value '{"name":"mismatched-name","type":"Hook","properties":{"enabled":false}}'
+        { Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace } |
+            Should -Throw '*must be lowercase kebab-case and match its directory name*'
     }
 }
 
@@ -146,7 +181,7 @@ Describe 'Agent HTTP request construction and failures' {
 
 Describe 'Owned asset convergence' {
     BeforeEach {
-        $script:assets = @(Get-CheckoutAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
+        $script:assets = @(Get-SreAgentAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
         $script:store = @{}
         Mock Start-Sleep { }
@@ -162,18 +197,18 @@ Describe 'Owned asset convergence' {
     }
 
     It 'creates, reads back and reruns without duplicate writes, then converges an owned edit' {
-        Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
-        Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
         Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
         $script:store["$script:endpoint/api/v2/extendedAgent/agents/checkout-investigator"].properties.instructions = 'outdated'
-        Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
         Should -Invoke Invoke-AgentRequest -Times 4 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
 
     It 'preflights all names and refuses an unmanaged object before any writes' {
         $script:store["$script:endpoint/api/v2/extendedAgent/scheduledtasks/checkout-daily-investigation"] =
             '{"name":"checkout-daily-investigation","type":"ScheduledTask","tags":[],"properties":{}}' | ConvertFrom-Json
-        { Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
+        { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
             Should -Throw '*Refusing unmanaged*'
         Should -Invoke Invoke-AgentRequest -Times 0 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
@@ -187,18 +222,18 @@ Describe 'Owned asset convergence' {
             if ($script:store.ContainsKey($Uri)) { return $script:store[$Uri] }
             return $null
         } -ParameterFilter { $Uri -match '/scheduledtasks/' }
-        Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
-        Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
         Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
         $script:store["$script:endpoint/api/v2/extendedAgent/scheduledtasks/checkout-daily-investigation"].properties.description = 'unmanaged'
-        { Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
+        { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
             Should -Throw '*Refusing unmanaged*'
         Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
 
     It 'stops after a failed PUT without deploying dependent assets' {
         Mock Invoke-AgentRequest { throw 'Deliberate HTTP 400.' } -ParameterFilter { $Method -eq 'PUT' }
-        { Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
+        { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
             Should -Throw '*Deliberate HTTP 400*'
         Should -Invoke Invoke-AgentRequest -Times 1 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
@@ -210,7 +245,7 @@ Describe 'Owned asset convergence' {
             '{"name":"checkout-investigation","type":"Skill","tags":["managed-by:checkout-reliability-lab"],"properties":{}}' |
                 ConvertFrom-Json
         } -ParameterFilter { $Method -eq 'GET' -and $script:written }
-        { Sync-CheckoutAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
+        { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
             Should -Throw '*Read-back verification failed*'
         Should -Invoke Invoke-AgentRequest -Times 1 -Exactly -ParameterFilter { $Method -eq 'PUT' }
         Should -Invoke Start-Sleep -Times 3 -Exactly
@@ -224,7 +259,7 @@ Describe 'Deployment discovery and identity boundaries' {
         $script:savedEvent = $env:GITHUB_EVENT_NAME
         $env:GITHUB_ACTIONS = $null
         Mock Assert-KeylessEnvironment { }
-        Mock Sync-CheckoutAsset { 'mock configured' }
+        Mock Sync-SreAgentAsset { 'mock configured' }
         Mock az {
             $global:LASTEXITCODE = 0
             $command = $args -join ' '
@@ -254,7 +289,7 @@ Describe 'Deployment discovery and identity boundaries' {
         Should -Invoke az -Times 1 -Exactly -ParameterFilter {
             $args -contains 'get-access-token' -and $args -contains 'https://azuresre.dev'
         }
-        Should -Invoke Sync-CheckoutAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
+        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
     }
 
     It 'rejects an untrusted ARM endpoint before token acquisition' -ForEach @(
@@ -273,7 +308,7 @@ Describe 'Deployment discovery and identity boundaries' {
     It 'propagates native token acquisition failure' {
         Mock az { $global:LASTEXITCODE = 5 } -ParameterFilter { $args -contains 'get-access-token' }
         { & $script:deploy -AgentName sre-checkout-test } | Should -Throw '*exit code 5*'
-        Should -Invoke Sync-CheckoutAsset -Times 0 -Exactly
+        Should -Invoke Sync-SreAgentAsset -Times 0 -Exactly
     }
 
     It 'rejects PR execution before accessing Azure' {
@@ -286,9 +321,9 @@ Describe 'Deployment discovery and identity boundaries' {
 
     It 'deploys from an explicit staged package directory and rejects a missing package path' {
         $destination = Join-Path $TestDrive ('deploy-pkg-' + [Guid]::NewGuid().ToString('N'))
-        $package = New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
+        $package = New-SreAgentAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
         & $script:deploy -AgentName sre-checkout-test -PackagePath $package.PackagePath
-        Should -Invoke Sync-CheckoutAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
+        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
         $missing = Join-Path $TestDrive 'nonexistent-package'
         { & $script:deploy -AgentName sre-checkout-test -PackagePath $missing } |
             Should -Throw '*package directory does not exist*'

@@ -42,15 +42,17 @@ local (`-Authentication AzureCli`) and hosted (`-Authentication GitHubOidc`) run
    `resource_provider_registrations = "none"` (`azurerm`) and
    `skip_provider_registration = true` (`azapi`) so the RG-scoped deployment
    identity never attempts subscription-scope provider registration.
-4. **Deterministic asset packaging**: Calls `New-CheckoutAssetPackage`
-   (`scripts/DataPlane.ps1`) to validate `assets/checkout/assets.json`, all
-   referenced Markdown prompts, and `sample/checkout.py`, staging them into a
+4. **Deterministic asset packaging**: Calls `New-SreAgentAssetPackage`
+   (`scripts/DataPlane.ps1`) to validate `sre-agent/manifest.json`, all
+   discovered resource manifests and referenced Markdown files across
+   `sre-agent/<kind>/<name>/`, and `sample/checkout.py`, staging them into a
    clean temporary package directory and computing the sample's SHA-256 hash.
 5. **Data-plane reconciliation**: Resolves the SRE Agent name from the
    non-secret `agent_id` Terraform output and invokes
    `scripts/Deploy-Assets.ps1 -AgentName <name> -ResourceGroupName <rg> -PackagePath <staged-dir>`
-   to reconcile `skills/checkout-investigation`, `agents/checkout-investigator`,
-   and `scheduledtasks/checkout-daily-investigation` in order.
+   to reconcile all discovered resources (`skills/checkout-investigation`,
+   `agents/checkout-investigator`, and
+   `scheduledtasks/checkout-daily-investigation`) in topological order.
 6. **Non-sensitive summary and cleanup**: Writes resource names, workspace
    customer ID, sample SHA-256, and `Configured`/`Unchanged` asset statuses to
    `-SummaryPath` (`GITHUB_STEP_SUMMARY` in Actions). A `finally` block removes

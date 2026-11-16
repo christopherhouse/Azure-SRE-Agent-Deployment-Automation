@@ -1,0 +1,13 @@
+{
+  "name": "checkout-investigation",
+  "type": "Skill",
+  "properties": {
+    "description": "Investigate synthetic checkout failures using workspace telemetry and a bundled source snapshot.",
+    "tools": ["RunAzCliReadCommands"],
+    "skillContent": "",
+    "additionalFiles": []
+  },
+  "contentFiles": {
+    "skillContent": "SKILL.md"
+  }
+}

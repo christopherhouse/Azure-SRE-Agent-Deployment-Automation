@@ -119,13 +119,13 @@ $packagePath = Join-Path ([IO.Path]::GetTempPath()) ("sre-checkout-package-" + [
 $package = $null
 $assetResults = @()
 try {
-    $package = New-CheckoutAssetPackage -RepositoryRoot $root -DestinationPath $packagePath
+    $package = New-SreAgentAssetPackage -RepositoryRoot $root -DestinationPath $packagePath
     $assetResults = @(& (Join-Path $PSScriptRoot 'Deploy-Assets.ps1') `
         -AgentName $agentName `
         -ResourceGroup $ResourceGroup `
         -PackagePath $package.PackagePath)
-    if ($assetResults.Count -ne 3) {
-        throw 'Data-plane deployment did not return the expected three asset outcomes.'
+    if ($assetResults.Count -lt 1 -or $assetResults.Count -ne @($package.AssetNames).Count) {
+        throw 'Data-plane deployment did not return outcomes matching the staged asset package.'
     }
 }
 finally {

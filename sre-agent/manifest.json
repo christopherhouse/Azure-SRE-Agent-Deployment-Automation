@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "owner": "managed-by:checkout-reliability-lab",
+  "sourcePath": "sample/checkout.py",
+  "kinds": [
+    {
+      "directory": "connectors",
+      "kind": "connectors",
+      "type": "DataConnector",
+      "manifestFile": "connector.json"
+    },
+    {
+      "directory": "skills",
+      "kind": "skills",
+      "type": "Skill",
+      "manifestFile": "skill.json"
+    },
+    {
+      "directory": "agents",
+      "kind": "agents",
+      "type": "ExtendedAgent",
+      "manifestFile": "agent.json"
+    },
+    {
+      "directory": "scheduled-tasks",
+      "kind": "scheduledtasks",
+      "type": "ScheduledTask",
+      "manifestFile": "task.json"
+    },
+    {
+      "directory": "hooks",
+      "kind": "hooks",
+      "type": "Hook",
+      "manifestFile": "hook.json"
+    }
+  ]
+}
