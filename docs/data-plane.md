@@ -175,9 +175,12 @@ collisions, task tag loss, retries, failed PUTs, missing read-back properties,
 asynchronous acceptance and repeated convergence. These mocks are not proof
 of live scheduled execution, GitHub access or investigation accuracy.
 
-Hosted OIDC data-plane deployment is not yet verified (Phase 5). Interactive
-GitHub consent, live connected-source investigation, and scheduled execution
-remain explicit operator/Phase 6 verification. No webhook delivery is claimed.
+Hosted OIDC data-plane deployment is verified in Phase 5 (`deploy.yml`, run
+`43942955764`; see [delivery.md](delivery.md)), and live fault/recovery
+investigation and scheduled-task status reconciliation are verified in Phase 6
+(thread `c63b8c97-fac0-42c9-958a-cdca00609ee5`; see
+[demonstration.md](demonstration.md)). Interactive GitHub OAuth consent remains
+an explicit operator step; no webhook delivery is claimed.
 
 For retirement, delete only these specifically owned assets after verifying
 their markers and pausing the task. This phase adds no bulk deletion script.

@@ -204,11 +204,11 @@ The worker is left **healthy**, with `fault_enabled=false`. Initial ingestion
 took several minutes; missing-table and empty-result responses were not
 counted as success. The agent's early query preceded fault-record ingestion;
 fault/recovery workspace evidence above came from the local operator query.
-Hosted CI execution of the conditioned role writes/deletes and authenticated
-hosted-runner agent-endpoint access remain unverified until the trusted
-deployment workflow is implemented. This Phase 3 evidence snapshot did not
-include Phase 4 assets, GitHub connections/triggers, or Phase 5 delivery;
-see [data-plane.md](data-plane.md) for subsequent configuration evidence.
+Subsequent Phase 4 data-plane asset reconciliation, Phase 5 hosted OIDC
+deployment (`deploy.yml`, run `43942955764`), and the Phase 6 live fault
+investigation (`c63b8c97-fac0-42c9-958a-cdca00609ee5`) are documented in
+[data-plane.md](data-plane.md), [delivery.md](delivery.md), and
+[demonstration.md](demonstration.md).
 
 ## Primary contracts
 

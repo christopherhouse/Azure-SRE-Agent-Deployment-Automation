@@ -4,16 +4,15 @@ A keyless, Git-driven Azure SRE Agent example built around **Checkout Reliabilit
 Lab**: a small, deliberately faultable checkout workload, structured telemetry,
 and an evidence-based agent investigation.
 
-**Status:** Phase 2 keyless bootstrap verified locally and by the trusted hosted
-workflow. Phase 3 infrastructure and synthetic checkout workload are
-deployed and locally verified, including agent workspace queries and
-fault/recovery telemetry; see the environment guide for evidence and limits.
-Phase 4 checkout investigation assets are deployed and repeat-run verified
-locally. GitHub OAuth requires operator consent; webhook delivery is not
-implemented. Phase 5 end-to-end deployment orchestration (`Deploy-Environment.ps1`)
-and the trusted `main`-only GitHub Actions delivery workflow (`deploy.yml`) are
-implemented and locally verified; hosted `deploy.yml` execution runs upon merge
-to `main`.
+**Status:** All six phases are implemented and verified. Phase 2 keyless
+bootstrap and Phase 5 end-to-end delivery (`deploy.yml`) are verified both
+locally and by trusted hosted GitHub OIDC workflows on `main` (runs
+`43915056852` and `43942955764`). Phase 3 infrastructure and the synthetic
+checkout workload, Phase 4 data-plane assets, and the Phase 6 controlled fault,
+Log Analytics telemetry, live SRE Agent investigation, scheduled-task drift
+reconciliation, and recovery walkthrough are deployed and verified; see
+[Demonstration and operator handoff](docs/demonstration.md) for reproduction,
+evidence, and explicit OAuth/webhook boundaries.
 
 ## Start here
 
@@ -29,6 +28,9 @@ to `main`.
   reconciliation, ownership, local evidence and integration limitations.
 - [GitHub Actions delivery](docs/delivery.md): ordered environment + data-plane
   orchestrator, deterministic asset packaging, and trusted `main`-only CI/CD.
+- [Demonstration and operator handoff](docs/demonstration.md): end-to-end
+  reproduction, controlled fault and live investigation walkthrough,
+  troubleshooting, costs, and safe cleanup.
 
 ## Deployment contract
 
