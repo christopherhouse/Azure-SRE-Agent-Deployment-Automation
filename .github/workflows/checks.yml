@@ -15,6 +15,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  terraform-validation:
+    name: Terraform validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.15.2
+          terraform_wrapper: false
+      - name: Format and validate without backend or Azure access
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive infra
+          terraform -chdir=infra/bootstrap init -backend=false -input=false -lockfile=readonly
+          terraform -chdir=infra/bootstrap validate
+          terraform -chdir=infra/environment init -backend=false -input=false
+          terraform -chdir=infra/environment validate
+
+  powershell-validation:
+    name: PowerShell (${{ matrix.edition }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: pwsh
+            os: ubuntu-latest
+            shell: pwsh
+          - edition: Windows PowerShell 5.1
+            os: windows-latest
+            shell: powershell
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned modules, analyze and run mocked tests
+        shell: pwsh
+        env:
+          TEST_SHELL: ${{ matrix.shell }}
+        run: |
+          & $env:TEST_SHELL -NoProfile -File ./scripts/Test-Repository.ps1 -InstallDependencies
+          if ($LASTEXITCODE -ne 0) { throw 'PowerShell validation failed.' }
+
   workflow-validation:
     name: Workflow validation
     runs-on: ubuntu-latest

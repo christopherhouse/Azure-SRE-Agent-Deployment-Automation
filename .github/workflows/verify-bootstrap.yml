@@ -1,0 +1,65 @@
+name: Verify keyless bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/**
+      - scripts/**
+      - .github/workflows/verify-bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sre-checkout-deployment
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Keyless backend access
+    if: github.ref == 'refs/heads/main' && github.repository == 'christopherhouse/Azure-SRE-Agent-Deployment-Automation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_USE_CLI: "false"
+      AZURE_CORE_OUTPUT: none
+      TF_IN_AUTOMATION: "true"
+      STATE_ACCOUNT: ${{ vars.TF_STATE_ACCOUNT }}
+      STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TARGET_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.15.2
+          terraform_wrapper: false
+      - name: Sign in with repository main federation
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify ARM, Blob operations and Entra Terraform backend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          az group show --name $env:TARGET_RESOURCE_GROUP --output none
+          if ($LASTEXITCODE -ne 0) { throw 'Target ARM access failed.' }
+          ./scripts/Test-StateAccess.ps1 -StorageAccountName $env:STATE_ACCOUNT -ContainerName $env:STATE_CONTAINER
+          ./scripts/Initialize-Backend.ps1 -StorageAccountName $env:STATE_ACCOUNT -ContainerName $env:STATE_CONTAINER -StateKey $env:STATE_KEY -Authentication GitHubOidc
+          'ARM and keyless Blob/backend access verified. Agent endpoint verification is deferred until Phase 3.' >> $env:GITHUB_STEP_SUMMARY
