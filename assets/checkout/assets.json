@@ -1,0 +1,46 @@
+{
+  "owner": "managed-by:checkout-reliability-lab",
+  "assets": [
+    {
+      "kind": "skills",
+      "name": "checkout-investigation",
+      "type": "Skill",
+      "properties": {
+        "description": "Investigate synthetic checkout failures using workspace telemetry and a bundled source snapshot.",
+        "tools": ["RunAzCliReadCommands"],
+        "skillContent": "",
+        "additionalFiles": []
+      },
+      "contentFiles": {"skillContent": "investigation.md"}
+    },
+    {
+      "kind": "agents",
+      "name": "checkout-investigator",
+      "type": "ExtendedAgent",
+      "properties": {
+        "instructions": "",
+        "handoffDescription": "Read-only investigation of Checkout Reliability Lab failures, revisions, and recovery evidence.",
+        "handoffs": [],
+        "tools": ["RunAzCliReadCommands"],
+        "temperature": 0.2,
+        "enableSkills": true,
+        "allowedSkills": ["checkout-investigation"]
+      },
+      "contentFiles": {"instructions": "agent.md"}
+    },
+    {
+      "kind": "scheduledtasks",
+      "name": "checkout-daily-investigation",
+      "type": "ScheduledTask",
+      "properties": {
+        "description": "Optional daily synthetic checkout investigation; paused until deliberately activated in Git.",
+        "cronExpression": "0 14 * * *",
+        "agentPrompt": "",
+        "agent": "checkout-investigator",
+        "agentMode": "Review",
+        "status": "Paused"
+      },
+      "contentFiles": {"agentPrompt": "automation.md"}
+    }
+  ]
+}

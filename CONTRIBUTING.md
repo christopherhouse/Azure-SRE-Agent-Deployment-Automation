@@ -38,6 +38,10 @@ access. For live bootstrap prerequisites and ownership, see
 standard library; Python 3.13 is pinned by image digest in the deployed worker.
 Use Python 3.13 locally, or a compatible Python 3 runtime for its unit tests.
 No package restore or Azure identity is needed for sample checks.
+Phase 4 assets use JSON and Markdown without additional dependencies.
+`Test-Repository.ps1` discovers their cloud-free deployment tests automatically;
+see [data-plane.md](docs/data-plane.md) for separate live verification. Never
+invoke `Deploy-Assets.ps1` from a PR check.
 
 ## Local checks
 

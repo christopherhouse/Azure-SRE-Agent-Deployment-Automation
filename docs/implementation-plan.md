@@ -103,6 +103,12 @@ workload, with working least-privilege monitoring access and stable state.
 
 ## Phase 4: Data-plane assets and PowerShell deployment
 
+Implementation, ownership, preview-contract findings and local configuration
+evidence are in [data-plane.md](data-plane.md). All three owned assets converge
+locally, with the task paused. Interactive GitHub OAuth remains an operator
+step; no keyless GitHub webhook delivery is claimed. Configuration read-back
+does not establish scheduled execution or investigation quality.
+
 1. Design the investigation skill, custom agent, automation, and supporting
    prompts as version-controlled text. The investigation should correlate a
    checkout failure with workspace evidence and relevant source context.
