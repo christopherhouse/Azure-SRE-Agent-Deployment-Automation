@@ -42,7 +42,8 @@ not register themselves or alter Azure Policy.
 The interactive operator needs resource deployment and role-assignment write
 permissions in the target RG. Initial deployment is operator-run because the
 Phase 2 CI Contributor grant cannot assign roles. Subsequent CI permission is
-established separately below; deployment workflows are Phase 5, not this PR.
+established separately below, and automated `main`-branch delivery is documented
+in [delivery.md](delivery.md).
 
 Run from the root in Windows PowerShell 5.1 or `pwsh`, checking every native
 exit code. Do not set client secrets, certificates, account keys, SAS tokens,

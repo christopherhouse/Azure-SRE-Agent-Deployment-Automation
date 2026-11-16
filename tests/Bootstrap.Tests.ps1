@@ -38,7 +38,7 @@ Describe 'Bootstrap ownership and failure handling' {
                 Set-Content -LiteralPath $outputPath -Value 'mock plan'
             }
             if ($args -contains 'output') {
-                '{"AZURE_CLIENT_ID":"client","AZURE_SUBSCRIPTION_ID":"target"}'
+                '{"AZURE_CLIENT_ID":"client","AZURE_SUBSCRIPTION_ID":"target","AZURE_OPERATOR_OBJECT_ID":"operator"}'
             }
         }
         Mock gh {
@@ -79,7 +79,7 @@ Describe 'Bootstrap ownership and failure handling' {
         & $script:bootstrap -StateStorageAccountId $script:accountId -Apply -ConfigureGitHub
         & $script:bootstrap -StateStorageAccountId $script:accountId -Apply -ConfigureGitHub
         Should -Invoke terraform -Times 2 -Exactly -ParameterFilter { $args -contains 'apply' -and ($args -join ' ') -match 'bootstrap.tfplan' }
-        Should -Invoke gh -Times 4 -Exactly -ParameterFilter { $args -contains 'set' }
+        Should -Invoke gh -Times 6 -Exactly -ParameterFilter { $args -contains 'set' }
         Should -Invoke az -Times 0 -Exactly -ParameterFilter { $args -contains 'create' }
     }
 

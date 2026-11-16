@@ -1,0 +1,73 @@
+name: Deploy checkout environment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - assets/checkout/**
+      - infra/environment/**
+      - sample/**
+      - scripts/Common.ps1
+      - scripts/DataPlane.ps1
+      - scripts/Deploy-Assets.ps1
+      - scripts/Deploy-Environment.ps1
+      - scripts/Initialize-Backend.ps1
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sre-checkout-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy environment and data plane
+    if: github.ref == 'refs/heads/main' && github.repository == 'christopherhouse/Azure-SRE-Agent-Deployment-Automation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_USE_CLI: "false"
+      AZURE_OPERATOR_OBJECT_ID: ${{ vars.AZURE_OPERATOR_OBJECT_ID }}
+      AZURE_CORE_OUTPUT: none
+      TF_IN_AUTOMATION: "true"
+      STATE_ACCOUNT: ${{ vars.TF_STATE_ACCOUNT }}
+      STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TARGET_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.15.2
+          terraform_wrapper: false
+      - name: Sign in with repository main federation
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy environment infrastructure and checkout assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/Deploy-Environment.ps1 `
+            -StorageAccountName $env:STATE_ACCOUNT `
+            -ContainerName $env:STATE_CONTAINER `
+            -StateKey $env:STATE_KEY `
+            -Authentication GitHubOidc `
+            -ResourceGroup $env:TARGET_RESOURCE_GROUP

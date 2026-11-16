@@ -39,11 +39,12 @@ provider "azurerm" {
 }
 
 provider "azapi" {
-  subscription_id = split("/", var.state_storage_account_id)[2]
-  tenant_id       = var.tenant_id
-  use_cli         = true
-  use_oidc        = false
-  use_msi         = false
+  subscription_id            = split("/", var.state_storage_account_id)[2]
+  tenant_id                  = var.tenant_id
+  skip_provider_registration = true
+  use_cli                    = true
+  use_oidc                   = false
+  use_msi                    = false
 }
 
 locals {

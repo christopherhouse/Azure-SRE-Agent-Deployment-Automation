@@ -46,6 +46,28 @@ Describe 'Checkout asset rendering' {
         $actual.empty = $null
         Test-AgentValue $expected $actual | Should -BeFalse
     }
+
+    It 'packages only the versioned checkout manifest, prompt files and sample source into a clean directory' {
+        $destination = Join-Path $TestDrive ('pkg-' + [Guid]::NewGuid().ToString('N'))
+        $package = New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
+        $package.PackagePath | Should -Be $destination
+        $package.SourceSha256 | Should -Match '^[a-f0-9]{64}$'
+        $package.AssetNames | Should -Be @(
+            'skills/checkout-investigation',
+            'agents/checkout-investigator',
+            'scheduledtasks/checkout-daily-investigation'
+        )
+        $stagedFiles = @(Get-ChildItem -LiteralPath $destination -Recurse -File | ForEach-Object { $_.Name } | Sort-Object)
+        $stagedFiles | Should -Be @('agent.md', 'assets.json', 'automation.md', 'checkout.py', 'investigation.md')
+        $fromRepo = @(Get-CheckoutAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
+        $fromPackage = @(Get-CheckoutAsset -RepositoryRoot $destination -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
+        ($fromPackage | ConvertTo-Json -Depth 30 -Compress) |
+            Should -Be ($fromRepo | ConvertTo-Json -Depth 30 -Compress)
+        { New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination } |
+            Should -Throw '*already exists*'
+    }
 }
 
 Describe 'Agent HTTP request construction and failures' {
@@ -260,5 +282,15 @@ Describe 'Deployment discovery and identity boundaries' {
         $env:GITHUB_EVENT_NAME = 'pull_request'
         { & $script:deploy -AgentName sre-checkout-test } | Should -Throw '*trusted main*'
         Should -Invoke az -Times 0 -Exactly
+    }
+
+    It 'deploys from an explicit staged package directory and rejects a missing package path' {
+        $destination = Join-Path $TestDrive ('deploy-pkg-' + [Guid]::NewGuid().ToString('N'))
+        $package = New-CheckoutAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
+        & $script:deploy -AgentName sre-checkout-test -PackagePath $package.PackagePath
+        Should -Invoke Sync-CheckoutAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
+        $missing = Join-Path $TestDrive 'nonexistent-package'
+        { & $script:deploy -AgentName sre-checkout-test -PackagePath $missing } |
+            Should -Throw '*package directory does not exist*'
     }
 }

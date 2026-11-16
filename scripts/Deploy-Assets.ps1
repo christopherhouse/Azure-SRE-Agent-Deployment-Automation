@@ -5,7 +5,8 @@ param(
     [ValidatePattern('^[a-zA-Z0-9-]+$')]
     [string] $AgentName,
     [ValidatePattern('^[a-zA-Z0-9-]+$')]
-    [string] $ResourceGroup = 'rg-sre-checkout-westus3'
+    [string] $ResourceGroup = 'rg-sre-checkout-westus3',
+    [string] $PackagePath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,7 +38,14 @@ $workspaceId = [Guid]::Empty
 if (-not [Guid]::TryParse($workspace.properties.customerId, [ref] $workspaceId)) {
     throw 'Workspace customer ID is invalid.'
 }
-$assets = @(Get-CheckoutAsset -RepositoryRoot (Split-Path $PSScriptRoot -Parent) `
+$assetRoot = Split-Path $PSScriptRoot -Parent
+if ($PackagePath) {
+    if (-not (Test-Path -LiteralPath $PackagePath -PathType Container)) {
+        throw 'Supplied asset package directory does not exist.'
+    }
+    $assetRoot = $PackagePath
+}
+$assets = @(Get-CheckoutAsset -RepositoryRoot $assetRoot `
     -SubscriptionId $account.id -ResourceGroup $ResourceGroup -WorkspaceId $workspaceId.ToString())
 $token = $null
 $headers = @{}
