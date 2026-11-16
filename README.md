@@ -8,7 +8,9 @@ and an evidence-based agent investigation.
 workflow. Phase 3 infrastructure and synthetic checkout workload are
 deployed and locally verified, including agent workspace queries and
 fault/recovery telemetry; see the environment guide for evidence and limits.
-Data-plane assets and end-to-end CI deployment remain later-phase work.
+Phase 4 checkout investigation assets are deployed and repeat-run verified
+locally. GitHub OAuth requires operator consent; webhook delivery is not
+implemented. End-to-end hosted deployment remains Phase 5 work.
 
 ## Start here
 
@@ -20,6 +22,8 @@ Data-plane assets and end-to-end CI deployment remain later-phase work.
   permissions, recovery, live evidence and remaining verification.
 - [Environment and checkout lab](docs/environment.md): infrastructure ownership,
   local deployment, constrained CI RBAC, telemetry and controlled fault.
+- [Data-plane assets](docs/data-plane.md): versioned investigation, PowerShell
+  reconciliation, ownership, local evidence and integration limitations.
 
 ## Deployment contract
 
@@ -46,15 +50,13 @@ approval gate. Unsupported keyless integrations must be documented, not bypassed
 | `infra/bootstrap/` | Operator-run local-state Terraform: RG, CI identity, federation and scoped state access |
 | `infra/environment/` | Entra Blob backend, agent, monitoring, private worker and scoped RBAC |
 | `sample/` | Dependency-free synthetic checkout worker and unit tests |
+| `assets/checkout/` | Investigation skill, custom agent, paused task and supporting prompts |
 | `scripts/` | PowerShell bootstrap orchestration, backend/probe helpers and local checks |
 | `tests/` | Cloud-free mocked Pester tests |
 | `.github/copilot-instructions.md` | Shared project guidance for Copilot |
 | `.github/skills/deployment-contract-review/` | On-demand deployment ownership and authentication review |
 | `.github/workflows/checks.yml` | Non-deploying workflow validation and secret detection |
 | `.github/workflows/verify-bootstrap.yml` | Trusted main-only OIDC, ARM and Blob/backend verification |
-
-Create `assets/` when Phase 4 assets are added; empty placeholder directories
-are intentionally omitted.
 
 ## Initial checks
 

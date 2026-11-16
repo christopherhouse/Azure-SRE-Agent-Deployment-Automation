@@ -16,7 +16,7 @@ the externally owned state account as managed resources.
 | Container Apps environment and private worker | Environment Terraform / ARM through AzAPI | No application identity or credentials needed | Single active revision; one small replica |
 | Console/system log routing | Environment Terraform / ARM | Azure Monitor diagnostic settings to this workspace | Same named setting; no workspace key |
 | Optional CI RBAC delegation | Bootstrap Terraform / ARM | Conditioned RBAC Administrator at target RG | Operator manages; CI cannot broaden or delete its own delegation |
-| Skills, custom agents, connections and triggers | Reserved for Phase 4 | Not deployed here | No double ownership |
+| Skills, custom agents and scheduled task | Phase 4 PowerShell / data plane | See [data-plane.md](data-plane.md) | No Terraform double ownership |
 
 The worker runs the versioned Python source directly from the ARM container
 command, using a digest-pinned official Python image. It needs no image build,
@@ -205,8 +205,9 @@ counted as success. The agent's early query preceded fault-record ingestion;
 fault/recovery workspace evidence above came from the local operator query.
 Hosted CI execution of the conditioned role writes/deletes and authenticated
 hosted-runner agent-endpoint access remain unverified until the trusted
-deployment workflow is implemented. No claim is made that Phase 4 assets,
-GitHub connections/triggers, or Phase 5 delivery exist.
+deployment workflow is implemented. This Phase 3 evidence snapshot did not
+include Phase 4 assets, GitHub connections/triggers, or Phase 5 delivery;
+see [data-plane.md](data-plane.md) for subsequent configuration evidence.
 
 ## Primary contracts
 
