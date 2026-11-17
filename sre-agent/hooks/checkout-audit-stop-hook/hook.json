@@ -1,0 +1,17 @@
+{
+  "name": "checkout-audit-stop-hook",
+  "type": "GlobalHook",
+  "contentFiles": {
+    "hook.prompt": "prompt.md"
+  },
+  "properties": {
+    "description": "Verifies Checkout Lab investigation responses include root cause, SLO posture, and read-only next actions before completing a turn.",
+    "eventType": "Stop",
+    "activationMode": "always",
+    "hook": {
+      "type": "prompt",
+      "prompt": "",
+      "timeout": 30
+    }
+  }
+}

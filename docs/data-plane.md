@@ -1,17 +1,23 @@
 # Phase 4: checkout investigation assets
 
-PowerShell owns the checkout skill, custom agent and scheduled task. Terraform
-continues to own the agent, identities, workspace, workload and RBAC. Do not add
-ARM sub-resources for these three assets to Terraform, even though ARM exposes
-some of the same configuration. GitHub OAuth is an operator-owned connection,
-not part of either reconciliation loop.
+PowerShell owns the SRE Agent data-plane resource catalog under `sre-agent/`
+(connectors, common prompts, custom Python tools, skills, global hooks,
+subagents, and scheduled tasks). Terraform continues to own the agent,
+identities, workspace, workload and RBAC. Do not add ARM sub-resources for
+these data-plane objects to Terraform, even though ARM exposes some of the same
+configuration. GitHub OAuth is an operator-owned connection, not part of either
+reconciliation loop.
 
 ## Assets and ownership contract
 
 | Object | Owner / plane | Identity and scope | Repeat-run behavior |
 | --- | --- | --- | --- |
-| `checkout-investigation` skill | PowerShell / data plane | Selected CLI identity; SRE Agent Administrator on this agent | Owner tag checked, intended properties compared, PUT only on change |
-| `checkout-investigator` custom agent | PowerShell / data plane | Same configuration identity; only `RunAzCliReadCommands` is attached | Same owner tag and property verification; skill dependency deployed first |
+| `checkout-log-analytics` & `monitor-client` connectors | PowerShell / data plane | Selected CLI or CI OIDC identity; SRE Agent Administrator on this agent (`checkout-log-analytics` binds `id-sre-checkout-monitoring`) | Persisted `extendedProperties.description` ownership marker checked via `/connectors/listSecrets` when single-item GET masks properties; PUT only on change |
+| `checkout-guardrails` common prompt | PowerShell / data plane | Same configuration identity | Owner tag checked, rendered Markdown compared, PUT only on change |
+| `checkout-slo-evaluator` Python tool | PowerShell / data plane | Same configuration identity; pure Python SLO calculator (`toolMode: Auto`) | Owner tag checked, function code and parameters compared, PUT only on change |
+| `checkout-investigation` skill | PowerShell / data plane | Same configuration identity; SRE Agent Administrator on this agent | Owner tag checked, intended properties compared, PUT only on change |
+| `checkout-audit-stop-hook` global hook | PowerShell / data plane | Same configuration identity; `Stop` lifecycle verification hook | Owner tag checked, nested `hook.prompt` and properties compared, PUT only on change |
+| `checkout-investigator` custom agent | PowerShell / data plane | Same configuration identity; attaches `RunAzCliReadCommands`, `checkout-slo-evaluator`, `checkout-guardrails`, and `checkout-investigation` | Same owner tag and property verification; prompt, tool, and skill dependencies deployed first |
 | `checkout-daily-investigation` task | PowerShell / data plane | Same configuration identity; Review mode, status `Paused` | Persisted description ownership marker checked; status and routing verified |
 | GitHub source connection | Operator / interactive OAuth | GitHub account authorized in Code access | Not overwritten or adopted by the deployment |
 | HTTP webhook | Not deployed | No identity/exposure contract assumed | Not applicable |
@@ -21,24 +27,29 @@ data-plane resource kind rather than by a single scenario folder:
 
 | Kind directory | `/api/v2/extendedAgent/<kind>` | Envelope `type` | Resource manifest | Deployed examples |
 | --- | --- | --- | --- | --- |
-| `sre-agent/connectors/<name>/` | `connectors` | `DataConnector` | `connector.json` | *(optional — created when needed)* |
+| `sre-agent/connectors/<name>/` | `connectors` | `AgentConnector` | `connector.json` | `checkout-log-analytics`, `monitor-client` |
+| `sre-agent/common-prompts/<name>/` | `commonprompts` | `CommonPrompt` | `prompt.json` + `prompt.md` | `checkout-guardrails` |
+| `sre-agent/tools/<name>/` | `tools` | `ExtendedAgentTool` | `tool.json` + `tool.py` | `checkout-slo-evaluator` |
 | `sre-agent/skills/<name>/` | `skills` | `Skill` | `skill.json` + `SKILL.md` | `checkout-investigation` |
+| `sre-agent/hooks/<name>/` | `hooks` | `GlobalHook` | `hook.json` + `prompt.md` | `checkout-audit-stop-hook` |
 | `sre-agent/agents/<name>/` | `agents` | `ExtendedAgent` | `agent.json` + `instructions.md` | `checkout-investigator` |
 | `sre-agent/scheduled-tasks/<name>/` | `scheduledtasks` | `ScheduledTask` | `task.json` + `prompt.md` | `checkout-daily-investigation` |
-| `sre-agent/hooks/<name>/` | `hooks` | `Hook` | `hook.json` | *(optional — created when needed)* |
 
 `sre-agent/manifest.json` declares `schemaVersion: 1`, the repository ownership
 marker (`managed-by:checkout-reliability-lab`), the bundled `sourcePath`
 (`sample/checkout.py`), and the topological kind registry (`connectors` ->
-`skills` -> `agents` -> `scheduledtasks` -> `hooks`). Adding a new skill,
-subagent, scheduled task, connector, or hook requires only adding a new
-`<name>/` subdirectory under the corresponding kind folder—no changes to
-PowerShell scripts or GitHub Actions workflows are needed.
+`commonprompts` -> `tools` -> `skills` -> `hooks` -> `agents` ->
+`scheduledtasks`). Adding a new connector, common prompt, custom Python tool,
+skill, hook, subagent, or scheduled task requires only adding a new `<name>/`
+subdirectory under the corresponding kind folder—no changes to PowerShell
+scripts or GitHub Actions workflows are needed.
 
 During rendering, `Get-SreAgentAsset` (`scripts/DataPlane.ps1`) substitutes
-workspace/subscription/RG context into Markdown files referenced by
-`contentFiles` and bundles the checked-out `sample/checkout.py` text plus its
-SHA-256 into `{{SourceSnapshot}}`. This is a labeled
+workspace/subscription/RG/monitoring-UAMI context into JSON properties and
+companion files referenced by `contentFiles` (supporting dotted property paths
+such as `hook.prompt` and `.md`, `.txt`, `.json`, `.kql`, `.yaml`, `.yml`, and
+`.py` extensions) and bundles the checked-out `sample/checkout.py` text plus
+its SHA-256 into `{{SourceSnapshot}}` / `{{ContextHash}}`. This is a labeled
 source snapshot, not evidence of live GitHub access or the running revision's
 source. Prompts require telemetry/source correlation, bounded KQL queries,
 revision-aware order IDs, explicit evidence gaps and operator-only recovery.
@@ -49,8 +60,10 @@ It resolves the workspace customer ID from the same RG using `2025-07-01`.
 It does not read remote state, change subscriptions, assign roles or modify
 the shared state account. `scripts/DataPlane.ps1` discovers the `sre-agent/`
 resource tree in dependency order, validates directory-to-name matching and
-cross-references (`allowedSkills` -> `skills/<name>`, `scheduledtasks.agent` ->
-`agents/<name>`), and reconciles every discovered resource.
+cross-references (`allowedSkills` -> `skills/<name>`, `commonPrompts` ->
+`commonprompts/<name>`, lowercase kebab-case `tools` -> `tools/<name>`, and
+`scheduledtasks.agent` -> `agents/<name>`), and reconciles every discovered
+resource.
 
 The script obtains a short-lived Entra token for `https://azuresre.dev` from
 the current Azure CLI session. Bearers stay in memory, are never passed in
@@ -59,13 +72,19 @@ Endpoint validation requires an HTTPS `*.azuresre.ai` root URL, default TLS
 port, no user information/query/fragment, and no redirects. Do not enable
 PowerShell tracing, HTTP debugging or Azure CLI debug output around deployment.
 
-All names are preflighted before the first write. Skill/custom-agent ownership
-uses the exact `managed-by:checkout-reliability-lab` envelope tag. The current
-scheduled-task service drops envelope tags, so its description must end with
-` [managed-by:checkout-reliability-lab]`. This marker is appended during
-rendering. Removing a marker in the portal causes the next deployment to
-refuse that object, not silently take it over. Ownership markers are an
-operator convention, not a security boundary; Azure RBAC controls access.
+All names are preflighted before the first write. Common-prompt, custom-tool,
+skill, global-hook, and custom-agent ownership uses the exact
+`managed-by:checkout-reliability-lab` envelope tag. The current scheduled-task
+and connector services drop envelope tags on read-back (and single-item
+connector `GET` masks `dataSource` and `extendedProperties`), so
+`Get-SreAgentAsset` appends ` [managed-by:checkout-reliability-lab]` to
+`properties.description` on scheduled tasks and
+`properties.extendedProperties.description` on connectors, and
+`Get-AgentResource` queries `/api/v2/extendedAgent/connectors/listSecrets`
+when single-item connector read-back masks `dataSource`. Removing a marker in
+the portal causes the next deployment to refuse that object, not silently take
+it over. Ownership markers are an operator convention, not a security boundary;
+Azure RBAC controls access.
 
 Existing unmarked or incompatible objects require explicit ownership review.
 There is deliberately no force/adopt switch, automatic delete/recreate,
