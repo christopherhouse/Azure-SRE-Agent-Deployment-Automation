@@ -15,11 +15,11 @@
 
 **A 100% keyless, GitOps-driven Azure SRE Agent reference architecture built around the _Checkout Reliability Lab_: a deliberately faultable checkout workload, structured Log Analytics telemetry, and an automated 7-kind SRE Agent data-plane reconciliation pipeline.**
 
-[🎯 Start Here](#-documentation-hub) • [🏛️ Architecture](#️-architecture) • [🔄 GitOps Data Plane](#-sre-agent-data-plane-gitops-catalog) • [⚡ Quickstart](#-end-to-end-quickstart) • [🔬 Fault & Investigation Flow](#-checkout-reliability-lab-fault--investigation-flow) • [🛡️ CI/CD & Checks](#️-cicd-trust--validation-matrix)
+[🎯 Start Here](#-documentation-hub) • [⚡ How It Works (1-Pager)](docs/how-it-works.md) • [🏛️ Architecture](#️-architecture) • [🔄 GitOps Data Plane](#-sre-agent-data-plane-gitops-catalog) • [🚀 Quickstart](#-end-to-end-quickstart) • [🔬 Fault & Investigation Flow](#-checkout-reliability-lab-fault--investigation-flow) • [🛡️ CI/CD & Checks](#️-cicd-trust--validation-matrix)
 
 </div>
 
-This repository demonstrates end-to-end CI/CD for **Azure SRE Agent** using a two-stage automation pipeline: **Terraform** provisions the Azure infrastructure (`Microsoft.App/agents`, Log Analytics, managed identities, and a sample Container Apps checkout workload), while **PowerShell** packages and reconciles the agent's versioned data-plane catalog (connectors, shared prompts, custom Python tools, skills, hooks, subagents, and scheduled tasks) against the SRE Agent v2 API. Pull requests run cloud-free static validation and Pester tests, and merges to `main` authenticate via **GitHub OIDC** and **Entra ID**—with zero API keys, storage keys, or repository secrets—to converge both Azure resources and agent intelligence in a single workflow run.
+This repository demonstrates end-to-end CI/CD for **Azure SRE Agent** using a two-stage automation pipeline (**[read the 1-page How It Works guide](docs/how-it-works.md)**): **Terraform** provisions the Azure infrastructure (`Microsoft.App/agents`, Log Analytics, managed identities, and a sample Container Apps checkout workload), while **PowerShell** packages and reconciles the agent's versioned data-plane catalog (connectors, shared prompts, custom Python tools, skills, hooks, subagents, and scheduled tasks) against the SRE Agent v2 API. Pull requests run cloud-free static validation and Pester tests, and merges to `main` authenticate via **GitHub OIDC** and **Entra ID**—with zero API keys, storage keys, or repository secrets—to converge both Azure resources and agent intelligence in a single workflow run.
 
 ---
 
@@ -27,6 +27,7 @@ This repository demonstrates end-to-end CI/CD for **Azure SRE Agent** using a tw
 
 | Phase / Guide | Focus Area | Key Artifacts & Evidence |
 | :--- | :--- | :--- |
+| ⚡ **[How It Works (1-Pager)](docs/how-it-works.md)** | Plain-English overview of the CI/CD pipeline, Terraform `Microsoft.App/agents` resource, and `sre-agent/` v2 data-plane API mapping | `deploy.yml`, `infra/environment/`, `sre-agent/` |
 | 📜 **[Project Charter](docs/project-charter.md)** | Vision, boundaries, keyless constraints, and Checkout Reliability Lab goals | Scope decisions & success criteria |
 | 🗺️ **[Implementation Plan](docs/implementation-plan.md)** | Ordered 6-phase delivery plan and completion gates | Phase 1–6 verification checklist |
 | 🤝 **[Contributing Guide](CONTRIBUTING.md)** | Local toolchain setup, exact validation commands, PS 5.1 rules, and PR flow | `actionlint`, `gitleaks`, `Test-Repository.ps1` |
@@ -217,6 +218,7 @@ Azure-SRE-Agent-Deployment-Automation/
 │       └── deploy.yml                        # Trusted main-only Terraform + data-plane delivery
 ├── docs/
 │   ├── assets/                               # Custom SVG architecture & pipeline diagrams
+│   ├── how-it-works.md                       # 1-page plain-English overview of CI/CD, Terraform & Data-Plane API
 │   ├── project-charter.md                    # Vision, scope, and keyless constraints
 │   ├── implementation-plan.md                # 6-phase plan and completion criteria
 │   ├── bootstrap.md                          # Phase 2 identity & remote-state bootstrap guide
