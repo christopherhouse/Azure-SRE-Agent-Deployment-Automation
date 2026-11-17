@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="100%" height="100%" role="img" aria-labelledby="arch-title arch-desc">
-  <title id="arch-title">Azure SRE Agent Architecture &amp; Single-Owner Plane Boundaries</title>
+  <title id="arch-title">Azure SRE Agent Architecture &amp; CI/CD Topology</title>
   <desc id="arch-desc">Visual architecture showing GitHub Actions and Operator CLI at the top, external Azure Storage state container on the left, West US 3 target resource group in the center, and the 7 SRE Agent v2 data-plane resource kinds on the right.</desc>
   <defs>
     <linearGradient id="arch-bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -34,10 +34,10 @@
 
   <!-- Header -->
   <text x="36" y="42" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="800" fill="#F8FAFC">
-    System Architecture, Identity Trust &amp; Single-Owner Boundaries
+    System Architecture &amp; Keyless CI/CD Topology
   </text>
   <text x="36" y="65" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="13.5" fill="#94A3B8">
-    Every object has exactly one owner: External Storage Account • Bootstrap Terraform • Environment Terraform • PowerShell Data-Plane Reconciler
+    End-to-end delivery across Azure Storage remote state, Terraform ARM infrastructure, and the SRE Agent v2 data-plane API
   </text>
 
   <!-- Legend Pills (Top Right) -->
