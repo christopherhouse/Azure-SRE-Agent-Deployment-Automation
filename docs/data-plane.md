@@ -1,4 +1,10 @@
-# Phase 4: checkout investigation assets
+# 🧠 Phase 4: SRE Agent Data-Plane GitOps Catalog
+
+> **Navigation:** [🏠 README](../README.md) • [📜 Charter](project-charter.md) • [🗺️ Plan](implementation-plan.md) • [🥾 Phase 2: Bootstrap](bootstrap.md) • [🏗️ Phase 3: Environment](environment.md) • **🧠 Phase 4: Data Plane** • [🚀 Phase 5: Delivery](delivery.md) • [🔬 Phase 6: Demo](demonstration.md)
+
+<div align="center">
+  <img src="assets/gitops-pipeline.svg" alt="SRE Agent Topological GitOps Reconciliation Pipeline" width="100%" />
+</div>
 
 PowerShell owns the SRE Agent data-plane resource catalog under `sre-agent/`
 (connectors, common prompts, custom Python tools, skills, global hooks,
@@ -7,6 +13,16 @@ identities, workspace, workload and RBAC. Do not add ARM sub-resources for
 these data-plane objects to Terraform, even though ARM exposes some of the same
 configuration. GitHub OAuth is an operator-owned connection, not part of either
 reconciliation loop.
+
+```mermaid
+flowchart LR
+    C["1️⃣ connectors<br/>checkout-log-analytics<br/>monitor-client"] --> P["2️⃣ commonprompts<br/>checkout-guardrails"]
+    P --> T["3️⃣ tools<br/>checkout-slo-evaluator"]
+    T --> S["4️⃣ skills<br/>checkout-investigation"]
+    S --> H["5️⃣ hooks<br/>checkout-audit-stop-hook"]
+    H --> A["6️⃣ agents<br/>checkout-investigator"]
+    A --> ST["7️⃣ scheduledtasks<br/>checkout-daily-investigation"]
+```
 
 ## Assets and ownership contract
 
@@ -190,11 +206,14 @@ avoids exposing a trigger URL; it remains paused until deliberately activated.
 
 ## Evidence and remaining verification
 
-Live configuration evidence recorded **November 16, 2026** using the existing
-West US 3 agent and the selected local Azure CLI identity:
+Live configuration evidence recorded **November 16–17, 2026** using the existing
+West US 3 agent and the selected local Azure CLI and hosted GitHub OIDC
+identities:
 
-- The three v2 asset collections returned HTTP 200 with the documented Entra
-  audience. Skill, custom-agent and scheduled-task writes/read-backs succeeded.
+- All seven v2 asset collections (`connectors`, `commonprompts`, `tools`,
+  `skills`, `hooks`, `agents`, and `scheduledtasks`) returned HTTP 200 with the
+  documented Entra audience. Writes and read-back verification succeeded across
+  all eight deployed resources.
 - Live responses exposed HTTP 202 acceptance and dropped recipe properties.
   The deployer failed rather than hiding these mismatches. Task `isEnabled`
   was ignored and initially yielded Active; the newly created task was paused
@@ -202,24 +221,32 @@ West US 3 agent and the selected local Azure CLI identity:
   The runtime operation dropped task tags too. The exact newly created task
   was explicitly migrated to the persisted description marker; no unmanaged
   object was adopted. The final version uses verified `status: Paused` PUTs.
-- Both `pwsh` and Windows PowerShell 5.1 subsequently reported all three
-  deployed assets unchanged. Read-back confirmed the intended properties,
-  owner markers, Review mode and Paused task. No Terraform resource,
-  monitoring permission or shared state-account setting changed.
+- Single-item `GET /api/v2/extendedAgent/connectors/<name>` responses mask
+  `dataSource` and `extendedProperties`; `Get-AgentResource` falls back to
+  `POST /api/v2/extendedAgent/connectors/listSecrets` so connector type,
+  managed-identity binding, and description ownership markers are verified on
+  every run.
+- Both `pwsh` and Windows PowerShell 5.1 subsequently reported all eight
+  deployed assets across all seven kinds unchanged. Read-back confirmed the
+  intended properties, owner markers, Review mode and Paused task. No Terraform
+  resource, monitoring permission or shared state-account setting changed.
 - A deliberate nonexistent-agent deployment in a separate Windows PowerShell
   process failed ARM discovery and exited 1. No token acquisition or asset
   writes followed that failure.
 
-Cloud-free Pester tests separately cover rendering, scoped ARM discovery,
-audience and UTF-8 request construction, endpoint rejection, ownership
-collisions, task tag loss, retries, failed PUTs, missing read-back properties,
-asynchronous acceptance and repeated convergence. These mocks are not proof
-of live scheduled execution, GitHub access or investigation accuracy.
+Cloud-free Pester tests (`51/51` passing in both `pwsh` and Windows PowerShell
+5.1) separately cover rendering, recursive JSON token expansion, dotted
+`contentFiles` paths (`hook.prompt`), `.py` companion file loading, cross-reference
+validation, `/connectors/listSecrets` fallback, scoped ARM discovery, audience
+and UTF-8 request construction, endpoint rejection, ownership collisions, task
+tag loss, retries, failed PUTs, missing read-back properties, asynchronous
+acceptance and repeated convergence. These mocks are not proof of live scheduled
+execution, GitHub access or investigation accuracy.
 
-Hosted OIDC data-plane deployment is verified in Phase 5 (`deploy.yml`, run
-`43942955764`; see [delivery.md](delivery.md)), and live fault/recovery
-investigation and scheduled-task status reconciliation are verified in Phase 6
-(thread `c63b8c97-fac0-42c9-958a-cdca00609ee5`; see
+Hosted OIDC data-plane deployment is verified in Phase 5 (`deploy.yml`, runs
+`43942955764` and `44111399839`; see [delivery.md](delivery.md)), and live
+fault/recovery investigation and scheduled-task status reconciliation are
+verified in Phase 6 (thread `c63b8c97-fac0-42c9-958a-cdca00609ee5`; see
 [demonstration.md](demonstration.md)). Interactive GitHub OAuth consent remains
 an explicit operator step; no webhook delivery is claimed.
 

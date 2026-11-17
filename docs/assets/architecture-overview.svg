@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="100%" height="100%" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">Azure SRE Agent Architecture &amp; Single-Owner Plane Boundaries</title>
+  <desc id="arch-desc">Visual architecture showing GitHub Actions and Operator CLI at the top, external Azure Storage state container on the left, West US 3 target resource group in the center, and the 7 SRE Agent v2 data-plane resource kinds on the right.</desc>
+  <defs>
+    <linearGradient id="arch-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070D19"/>
+      <stop offset="100%" stop-color="#0F1E36"/>
+    </linearGradient>
+    <linearGradient id="plane-tf" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="plane-ps" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#A78BFA"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#34D399"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#FBBF24"/>
+    </marker>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1200" height="660" rx="18" fill="url(#arch-bg)"/>
+  <rect x="1.5" y="1.5" width="1197" height="657" rx="16.5" fill="none" stroke="#1E3A5F" stroke-width="2"/>
+
+  <!-- Header -->
+  <text x="36" y="42" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="800" fill="#F8FAFC">
+    System Architecture, Identity Trust &amp; Single-Owner Boundaries
+  </text>
+  <text x="36" y="65" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="13.5" fill="#94A3B8">
+    Every object has exactly one owner: External Storage Account • Bootstrap Terraform • Environment Terraform • PowerShell Data-Plane Reconciler
+  </text>
+
+  <!-- Legend Pills (Top Right) -->
+  <g transform="translate(690, 24)" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700">
+    <rect x="0" y="0" width="150" height="28" rx="8" fill="#1E1B4B" stroke="#8B5CF6" stroke-width="1.2"/>
+    <circle cx="15" cy="14" r="5" fill="#A78BFA"/>
+    <text x="27" y="18" fill="#DDD6FE">Terraform (ARM)</text>
+
+    <rect x="160" y="0" width="166" height="28" rx="8" fill="#082F49" stroke="#38BDF8" stroke-width="1.2"/>
+    <circle cx="175" cy="14" r="5" fill="#38BDF8"/>
+    <text x="187" y="18" fill="#BAE6FD">PowerShell (v2 API)</text>
+
+    <rect x="336" y="0" width="140" height="28" rx="8" fill="#064E3B" stroke="#10B981" stroke-width="1.2"/>
+    <circle cx="351" cy="14" r="5" fill="#34D399"/>
+    <text x="363" y="18" fill="#A7F3D0">Entra Keyless Auth</text>
+  </g>
+
+  <!-- ==================== ZONE 1: CALLERS & CI/CD (TOP) ==================== -->
+  <g transform="translate(36, 86)">
+    <rect width="1128" height="106" rx="14" fill="#0B1629" stroke="#334155" stroke-width="1.5"/>
+    <text x="20" y="25" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#94A3B8" letter-spacing="1">
+      1. TRUSTED CALLERS &amp; WORKFLOW BOUNDARIES (NO KEYS, NO PATS, NO SECRETS)
+    </text>
+
+    <!-- Box 1A: PR Checks -->
+    <g transform="translate(20, 38)">
+      <rect width="290" height="54" rx="10" fill="#111C30" stroke="#475569" stroke-width="1.2"/>
+      <text x="14" y="22" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#E2E8F0">🛡️ Pull Request Checks (checks.yml)</text>
+      <text x="14" y="41" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#94A3B8">Cloud-free • No OIDC • actionlint, gitleaks, Pester</text>
+    </g>
+
+    <!-- Box 1B: Main Branch OIDC -->
+    <g transform="translate(332, 38)">
+      <rect width="416" height="54" rx="10" fill="#0F2442" stroke="#38BDF8" stroke-width="1.5"/>
+      <text x="14" y="22" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#7DD3FC">🚀 GitHub Actions on main (deploy.yml / verify-bootstrap.yml)</text>
+      <text x="14" y="41" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#BAE6FD">Federated OIDC subject: repo:...main • Concurrency serialized</text>
+    </g>
+
+    <!-- Box 1C: Interactive Operator -->
+    <g transform="translate(770, 38)">
+      <rect width="338" height="54" rx="10" fill="#132238" stroke="#10B981" stroke-width="1.4"/>
+      <text x="14" y="22" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#6EE7B7">💻 Interactive Operator (az login + gh auth)</text>
+      <text x="14" y="41" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#A7F3D0">Runs Bootstrap.ps1 &amp; local Deploy-Environment.ps1</text>
+    </g>
+  </g>
+
+  <!-- ==================== ZONE 2: EXTERNAL STATE ACCOUNT (LEFT) ==================== -->
+  <g transform="translate(36, 224)">
+    <rect width="256" height="398" rx="14" fill="#0B1629" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="18" y="28" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#FBBF24" letter-spacing="0.8">
+      2. EXTERNAL STATE STORAGE
+    </text>
+    <text x="18" y="46" font-family="Segoe UI, sans-serif" font-size="11" fill="#94A3B8">
+      Separate or same subscription
+    </text>
+
+    <!-- Storage Account Box -->
+    <g transform="translate(18, 64)">
+      <rect width="220" height="84" rx="10" fill="#18181B" stroke="#71717A" stroke-width="1.2"/>
+      <text x="14" y="24" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#F4F4F5">🗄️ Storage Account</text>
+      <text x="14" y="44" font-family="Consolas, monospace" font-size="11.5" fill="#FBBF24">satfstatecmhcus</text>
+      <text x="14" y="64" font-family="Segoe UI, sans-serif" font-size="11" fill="#A1A1AA">Shared Key: Disabled • Unmodified</text>
+    </g>
+
+    <!-- Dedicated Container (Bootstrap-owned) -->
+    <g transform="translate(18, 168)">
+      <rect width="220" height="112" rx="10" fill="#1E1B4B" stroke="#8B5CF6" stroke-width="1.4"/>
+      <text x="14" y="24" font-family="Segoe UI, sans-serif" font-size="12.5" font-weight="700" fill="#DDD6FE">📦 Container: sre-checkout</text>
+      <text x="14" y="44" font-family="Segoe UI, sans-serif" font-size="11" fill="#C4B5FD">Owner: infra/bootstrap (AzAPI)</text>
+      <rect x="14" y="56" width="192" height="42" rx="6" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="24" y="74" font-family="Consolas, monospace" font-size="11" fill="#93C5FD">checkout.tfstate</text>
+      <text x="24" y="90" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#94A3B8">use_azuread_auth + use_oidc</text>
+    </g>
+
+    <!-- Container RBAC Box -->
+    <g transform="translate(18, 298)">
+      <rect width="220" height="82" rx="10" fill="#064E3B" fill-opacity="0.45" stroke="#10B981" stroke-width="1.2"/>
+      <text x="14" y="24" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#6EE7B7">🔐 Container-Only RBAC</text>
+      <text x="14" y="44" font-family="Segoe UI, sans-serif" font-size="11" fill="#D1FAE5">Storage Blob Data Contributor</text>
+      <text x="14" y="62" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#A7F3D0">Granted to Operator &amp; CI UAMI</text>
+    </g>
+  </g>
+
+  <!-- ==================== ZONE 3: TARGET RG IN WEST US 3 (CENTER) ==================== -->
+  <g transform="translate(314, 224)">
+    <rect width="504" height="398" rx="14" fill="#0B1629" stroke="#8B5CF6" stroke-width="1.8"/>
+    <text x="20" y="28" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#C4B5FD" letter-spacing="0.8">
+      3. TARGET RESOURCE GROUP • rg-sre-checkout-westus3 (WEST US 3)
+    </text>
+    <text x="20" y="46" font-family="Segoe UI, sans-serif" font-size="11" fill="#94A3B8">
+      Provisioned by Terraform (direct azurerm + azapi resources, no AVM)
+    </text>
+
+    <!-- Bootstrap Sub-box -->
+    <g transform="translate(18, 62)">
+      <rect width="468" height="86" rx="10" fill="#1E1B4B" fill-opacity="0.7" stroke="#8B5CF6" stroke-width="1.3"/>
+      <text x="14" y="22" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#DDD6FE">🥾 Bootstrap Stack (infra/bootstrap)</text>
+      <rect x="14" y="32" width="214" height="42" rx="7" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="24" y="50" font-family="Consolas, monospace" font-size="11" font-weight="700" fill="#A5B4FC">id-sre-checkout-github</text>
+      <text x="24" y="66" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#94A3B8">Deployment UAMI + OIDC Trust</text>
+
+      <rect x="240" y="32" width="214" height="42" rx="7" fill="#0F172A" stroke="#6366F1" stroke-width="1"/>
+      <text x="250" y="50" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#A5B4FC">RG Contributor + Cond. RBAC</text>
+      <text x="250" y="66" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#94A3B8">Pinned principal &amp; role matrix</text>
+    </g>
+
+    <!-- Environment Sub-box -->
+    <g transform="translate(18, 162)">
+      <rect width="468" height="218" rx="10" fill="#131C31" stroke="#6366F1" stroke-width="1.4"/>
+      <text x="14" y="22" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#A5B4FC">🏗️ Environment Stack (infra/environment • 10 Resources)</text>
+
+      <!-- Row 1: Checkout Container App & Log Analytics -->
+      <g transform="translate(14, 34)">
+        <rect width="214" height="78" rx="8" fill="#091324" stroke="#38BDF8" stroke-width="1.2"/>
+        <text x="12" y="20" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#7DD3FC">🛒 ca-sre-checkout</text>
+        <text x="12" y="38" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#CBD5E1">Private Container App Worker</text>
+        <text x="12" y="54" font-family="Consolas, monospace" font-size="10" fill="#94A3B8">Python 3.13 • sample/checkout.py</text>
+        <text x="12" y="69" font-family="Consolas, monospace" font-size="10" fill="#FBBF24">CHECKOUT_FAULT_ENABLED</text>
+      </g>
+
+      <g transform="translate(240, 34)">
+        <rect width="214" height="78" rx="8" fill="#091324" stroke="#38BDF8" stroke-width="1.2"/>
+        <text x="12" y="20" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#7DD3FC">📊 law-sre-checkout</text>
+        <text x="12" y="38" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#CBD5E1">Log Analytics Workspace</text>
+        <text x="12" y="54" font-family="Consolas, monospace" font-size="10" fill="#94A3B8">ContainerAppConsoleLogs</text>
+        <text x="12" y="69" font-family="Segoe UI, sans-serif" font-size="10" fill="#34D399">Local Auth Disabled • 30d Cap</text>
+      </g>
+
+      <!-- Arrow between CA and LAW -->
+      <line x1="228" y1="73" x2="238" y2="73" stroke="#38BDF8" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+
+      <!-- Row 2: Monitoring UAMI & SRE Agent -->
+      <g transform="translate(14, 126)">
+        <rect width="214" height="78" rx="8" fill="#091324" stroke="#10B981" stroke-width="1.2"/>
+        <text x="12" y="20" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#6EE7B7">🪪 id-sre-checkout-monitoring</text>
+        <text x="12" y="38" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#CBD5E1">Agent User-Assigned Identity</text>
+        <text x="12" y="54" font-family="Segoe UI, sans-serif" font-size="10" fill="#A7F3D0">• Reader (Target RG)</text>
+        <text x="12" y="69" font-family="Segoe UI, sans-serif" font-size="10" fill="#A7F3D0">• Log Analytics Reader (LAW)</text>
+      </g>
+
+      <g transform="translate(240, 126)">
+        <rect width="214" height="78" rx="8" fill="#0F2442" stroke="#38BDF8" stroke-width="1.6"/>
+        <text x="12" y="20" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#F8FAFC">🤖 Microsoft.App/agents</text>
+        <text x="12" y="38" font-family="Consolas, monospace" font-size="10.5" fill="#7DD3FC">sre-checkout-&lt;suffix&gt;</text>
+        <text x="12" y="54" font-family="Segoe UI, sans-serif" font-size="10" fill="#BAE6FD">Mode: Review • API 2026-01-01</text>
+        <text x="12" y="69" font-family="Segoe UI, sans-serif" font-size="10" fill="#34D399">Admin RBAC: CI UAMI + Operator</text>
+      </g>
+
+      <!-- Arrow between UAMI and SRE Agent -->
+      <line x1="228" y1="165" x2="238" y2="165" stroke="#34D399" stroke-width="1.8" marker-end="url(#arrow-emerald)"/>
+      <!-- Arrow from LAW to SRE Agent -->
+      <line x1="347" y1="112" x2="347" y2="124" stroke="#38BDF8" stroke-width="1.8" marker-end="url(#arrow-blue)"/>
+    </g>
+  </g>
+
+  <!-- ==================== ZONE 4: SRE AGENT DATA PLANE (RIGHT) ==================== -->
+  <g transform="translate(840, 224)">
+    <rect width="324" height="398" rx="14" fill="#0B1629" stroke="#38BDF8" stroke-width="1.8"/>
+    <text x="18" y="28" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#7DD3FC" letter-spacing="0.8">
+      4. SRE AGENT DATA PLANE (sre-agent/)
+    </text>
+    <text x="18" y="46" font-family="Segoe UI, sans-serif" font-size="11" fill="#94A3B8">
+      PowerShell Reconciler • https://azuresre.dev
+    </text>
+
+    <!-- 7 Topological Resource Kinds -->
+    <g transform="translate(18, 60)" font-family="Segoe UI, sans-serif">
+      <!-- 1. Connectors -->
+      <rect x="0" y="0" width="288" height="38" rx="7" fill="#082F49" stroke="#0284C7" stroke-width="1.1"/>
+      <text x="12" y="16" font-size="11.5" font-weight="700" fill="#7DD3FC">1. connectors (AgentConnector)</text>
+      <text x="12" y="31" font-family="Consolas, monospace" font-size="10" fill="#BAE6FD">checkout-log-analytics, monitor-client</text>
+
+      <!-- 2. Common Prompts -->
+      <rect x="0" y="45" width="288" height="38" rx="7" fill="#082F49" stroke="#0284C7" stroke-width="1.1"/>
+      <text x="12" y="61" font-size="11.5" font-weight="700" fill="#7DD3FC">2. commonprompts (CommonPrompt)</text>
+      <text x="12" y="76" font-family="Consolas, monospace" font-size="10" fill="#BAE6FD">checkout-guardrails (prompt.md)</text>
+
+      <!-- 3. Tools -->
+      <rect x="0" y="90" width="288" height="38" rx="7" fill="#082F49" stroke="#0284C7" stroke-width="1.1"/>
+      <text x="12" y="106" font-size="11.5" font-weight="700" fill="#7DD3FC">3. tools (ExtendedAgentTool)</text>
+      <text x="12" y="121" font-family="Consolas, monospace" font-size="10" fill="#BAE6FD">checkout-slo-evaluator (tool.py)</text>
+
+      <!-- 4. Skills -->
+      <rect x="0" y="135" width="288" height="38" rx="7" fill="#082F49" stroke="#0284C7" stroke-width="1.1"/>
+      <text x="12" y="151" font-size="11.5" font-weight="700" fill="#7DD3FC">4. skills (Skill + SHA-256 Snapshot)</text>
+      <text x="12" y="166" font-family="Consolas, monospace" font-size="10" fill="#BAE6FD">checkout-investigation (SKILL.md)</text>
+
+      <!-- 5. Hooks -->
+      <rect x="0" y="180" width="288" height="38" rx="7" fill="#082F49" stroke="#0284C7" stroke-width="1.1"/>
+      <text x="12" y="196" font-size="11.5" font-weight="700" fill="#7DD3FC">5. hooks (GlobalHook • Stop Event)</text>
+      <text x="12" y="211" font-family="Consolas, monospace" font-size="10" fill="#BAE6FD">checkout-audit-stop-hook (prompt.md)</text>
+
+      <!-- 6. Agents -->
+      <rect x="0" y="225" width="288" height="38" rx="7" fill="#0F2942" stroke="#10B981" stroke-width="1.3"/>
+      <text x="12" y="241" font-size="11.5" font-weight="700" fill="#6EE7B7">6. agents (ExtendedAgent)</text>
+      <text x="12" y="256" font-family="Consolas, monospace" font-size="10" fill="#A7F3D0">checkout-investigator (instructions.md)</text>
+
+      <!-- 7. Scheduled Tasks -->
+      <rect x="0" y="270" width="288" height="38" rx="7" fill="#0F2942" stroke="#10B981" stroke-width="1.3"/>
+      <text x="12" y="286" font-size="11.5" font-weight="700" fill="#6EE7B7">7. scheduledtasks (ScheduledTask)</text>
+      <text x="12" y="301" font-family="Consolas, monospace" font-size="10" fill="#A7F3D0">checkout-daily-investigation (Paused)</text>
+
+      <!-- Ownership Footer -->
+      <rect x="0" y="315" width="288" height="16" rx="4" fill="#064E3B"/>
+      <text x="10" y="326.5" font-family="Consolas, monospace" font-size="9.5" fill="#A7F3D0">tag: managed-by:checkout-reliability-lab</text>
+    </g>
+  </g>
+
+  <!-- ==================== CONNECTING ARROWS ACROSS ZONES ==================== -->
+  <!-- Caller Zone to External State -->
+  <path d="M 460 192 L 460 208 L 164 208 L 164 222" fill="none" stroke="#FBBF24" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <!-- Caller Zone to Target RG -->
+  <line x1="566" y1="192" x2="566" y2="222" stroke="#A78BFA" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <!-- Caller Zone to Data Plane -->
+  <path d="M 680 192 L 680 208 L 1002 208 L 1002 222" fill="none" stroke="#38BDF8" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <!-- SRE Agent ARM to Data Plane -->
+  <line x1="772" y1="549" x2="838" y2="549" stroke="#38BDF8" stroke-width="2.2" stroke-dasharray="4 3" marker-end="url(#arrow-blue)"/>
+</svg>

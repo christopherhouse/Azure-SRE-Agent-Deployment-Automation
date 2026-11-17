@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="100%" height="100%" role="img" aria-labelledby="pipe-title pipe-desc">
+  <title id="pipe-title">SRE Agent Topological GitOps Reconciliation Pipeline</title>
+  <desc id="pipe-desc">Shows the 7 SRE Agent v2 data-plane resource kinds reconciled in topological order by scripts/Deploy-Assets.ps1, preceded by Terraform infrastructure convergence and deterministic asset packaging.</desc>
+  <defs>
+    <linearGradient id="pipe-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070E1B"/>
+      <stop offset="100%" stop-color="#0D1F38"/>
+    </linearGradient>
+    <linearGradient id="step-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#112846"/>
+      <stop offset="100%" stop-color="#09172B"/>
+    </linearGradient>
+    <marker id="pipe-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" fill="#38BDF8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="280" rx="16" fill="url(#pipe-bg)"/>
+  <rect x="1.5" y="1.5" width="1197" height="277" rx="14.5" fill="none" stroke="#1E3A5F" stroke-width="2"/>
+
+  <!-- Header -->
+  <text x="32" y="38" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#F8FAFC">
+    Topological Data-Plane GitOps Pipeline (sre-agent/manifest.json → Deploy-Assets.ps1)
+  </text>
+  <text x="32" y="59" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#94A3B8">
+    Validated cross-references • Template &amp; SHA-256 source injection • Ownership preflight • Bounded HTTP 202 read-back convergence
+  </text>
+
+  <!-- 7 Topological Stage Cards -->
+  <g transform="translate(24, 80)" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif">
+    <!-- Stage 1 -->
+    <g transform="translate(0, 0)">
+      <rect width="148" height="128" rx="12" fill="url(#step-grad)" stroke="#0284C7" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="12" fill="#0284C7"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#FFFFFF">1</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#7DD3FC">Connectors</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">AgentConnector</text>
+      <text x="14" y="74" font-size="10.5" fill="#94A3B8">• checkout-log-analytics</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• monitor-client</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#38BDF8">listSecrets fallback</text>
+    </g>
+
+    <line x1="150" y1="64" x2="164" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 2 -->
+    <g transform="translate(166, 0)">
+      <rect width="148" height="128" rx="12" fill="url(#step-grad)" stroke="#0284C7" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="12" fill="#0284C7"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#FFFFFF">2</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#7DD3FC">Prompts</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">CommonPrompt</text>
+      <text x="14" y="74" font-size="10.5" fill="#94A3B8">• checkout-guardrails</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Shared read-only</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#38BDF8">prompt.json + .md</text>
+    </g>
+
+    <line x1="316" y1="64" x2="330" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 3 -->
+    <g transform="translate(332, 0)">
+      <rect width="148" height="128" rx="12" fill="url(#step-grad)" stroke="#0284C7" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="12" fill="#0284C7"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#FFFFFF">3</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#7DD3FC">Python Tools</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">ExtendedAgentTool</text>
+      <text x="14" y="74" font-size="10.5" fill="#94A3B8">• checkout-slo-evaluator</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Pure Python SLO math</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#38BDF8">tool.json + tool.py</text>
+    </g>
+
+    <line x1="482" y1="64" x2="496" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 4 -->
+    <g transform="translate(498, 0)">
+      <rect width="148" height="128" rx="12" fill="url(#step-grad)" stroke="#0284C7" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="12" fill="#0284C7"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#FFFFFF">4</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#7DD3FC">Skills</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">Skill</text>
+      <text x="14" y="74" font-size="10.5" fill="#94A3B8">• checkout-investigation</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Bundles checkout.py</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#38BDF8">skill.json + SKILL.md</text>
+    </g>
+
+    <line x1="648" y1="64" x2="662" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 5 -->
+    <g transform="translate(664, 0)">
+      <rect width="148" height="128" rx="12" fill="url(#step-grad)" stroke="#0284C7" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="12" fill="#0284C7"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#FFFFFF">5</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#7DD3FC">Global Hooks</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">GlobalHook</text>
+      <text x="14" y="74" font-size="10.5" fill="#94A3B8">• checkout-audit-stop</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Stop event checklist</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#38BDF8">hook.prompt path</text>
+    </g>
+
+    <line x1="814" y1="64" x2="828" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 6 -->
+    <g transform="translate(830, 0)">
+      <rect width="154" height="128" rx="12" fill="url(#step-grad)" stroke="#10B981" stroke-width="1.6"/>
+      <circle cx="24" cy="24" r="12" fill="#10B981"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#06281E">6</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#6EE7B7">Subagents</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">ExtendedAgent</text>
+      <text x="14" y="74" font-size="10.5" fill="#A7F3D0">• checkout-investigator</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Wires tools/skills/prompt</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#34D399">Cross-ref validated</text>
+    </g>
+
+    <line x1="986" y1="64" x2="1000" y2="64" stroke="#38BDF8" stroke-width="2" marker-end="url(#pipe-arrow)"/>
+
+    <!-- Stage 7 -->
+    <g transform="translate(1002, 0)">
+      <rect width="150" height="128" rx="12" fill="url(#step-grad)" stroke="#10B981" stroke-width="1.6"/>
+      <circle cx="24" cy="24" r="12" fill="#10B981"/>
+      <text x="20" y="28.5" font-size="12" font-weight="800" fill="#06281E">7</text>
+      <text x="44" y="28" font-size="12.5" font-weight="700" fill="#6EE7B7">Schedules</text>
+      <text x="14" y="52" font-family="Consolas, monospace" font-size="10.5" fill="#E2E8F0">ScheduledTask</text>
+      <text x="14" y="74" font-size="10.5" fill="#A7F3D0">• daily-investigation</text>
+      <text x="14" y="90" font-size="10.5" fill="#94A3B8">• Cron 0 14 * * * UTC</text>
+      <text x="14" y="114" font-family="Consolas, monospace" font-size="9.5" fill="#FBBF24">Status: Paused (Review)</text>
+    </g>
+  </g>
+
+  <!-- Bottom Guardrail Banner -->
+  <g transform="translate(24, 224)">
+    <rect width="1152" height="36" rx="8" fill="#0A192F" stroke="#1E3A5F" stroke-width="1.2"/>
+    <text x="18" y="22.5" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#CBD5E1">
+      🔒 <tspan font-weight="700" fill="#38BDF8">Zero-Takeover Guarantee:</tspan> Every resource is preflighted for <tspan font-family="Consolas, monospace" fill="#6EE7B7">managed-by:checkout-reliability-lab</tspan> before the first write. Unmarked portal objects are refused, never overwritten.
+    </text>
+  </g>
+</svg>

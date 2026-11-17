@@ -1,83 +1,315 @@
-# Azure SRE Agent deployment automation
+<div align="center">
 
-A keyless, Git-driven Azure SRE Agent example built around **Checkout Reliability
-Lab**: a small, deliberately faultable checkout workload, structured telemetry,
-and an evidence-based agent investigation.
+<img src="docs/assets/hero-banner.svg" alt="Azure SRE Agent Deployment Automation — Checkout Reliability Lab" width="100%" />
 
-**Status:** All six phases are implemented and verified. Phase 2 keyless
-bootstrap and Phase 5 end-to-end delivery (`deploy.yml`) are verified both
-locally and by trusted hosted GitHub OIDC workflows on `main` (runs
-`43915056852` and `43942955764`). Phase 3 infrastructure and the synthetic
-checkout workload, Phase 4 data-plane assets, and the Phase 6 controlled fault,
-Log Analytics telemetry, live SRE Agent investigation, scheduled-task drift
-reconciliation, and recovery walkthrough are deployed and verified; see
-[Demonstration and operator handoff](docs/demonstration.md) for reproduction,
-evidence, and explicit OAuth/webhook boundaries.
+<br />
 
-## Start here
+[![Repository Checks](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/checks.yml)
+[![Verify Keyless Bootstrap](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/verify-bootstrap.yml/badge.svg?branch=main)](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/verify-bootstrap.yml)
+[![Deploy Checkout Environment](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/christopherhouse/Azure-SRE-Agent-Deployment-Automation/actions/workflows/deploy.yml)
+![Region](https://img.shields.io/badge/Azure-West%20US%203-0078D4?logo=microsoftazure&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-1.15.2-7B42BC?logo=terraform&logoColor=white)
+![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%2B%207-5391FE?logo=powershell&logoColor=white)
+![Auth](https://img.shields.io/badge/Auth-100%25%20Keyless%20Entra%20%2B%20OIDC-10B981)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B.svg)](LICENSE)
 
-- [Project charter](docs/project-charter.md): outcomes, boundaries, and decisions.
-- [Implementation plan](docs/implementation-plan.md): ordered phases and their
-  completion criteria.
-- [Contributing](CONTRIBUTING.md): local setup, checks, and the branch/PR workflow.
-- [Identity and state bootstrap](docs/bootstrap.md): ownership, commands,
-  permissions, recovery, live evidence and remaining verification.
-- [Environment and checkout lab](docs/environment.md): infrastructure ownership,
-  local deployment, constrained CI RBAC, telemetry and controlled fault.
-- [Data-plane assets](docs/data-plane.md): versioned investigation, PowerShell
-  reconciliation, ownership, local evidence and integration limitations.
-- [GitHub Actions delivery](docs/delivery.md): ordered environment + data-plane
-  orchestrator, deterministic asset packaging, and trusted `main`-only CI/CD.
-- [Demonstration and operator handoff](docs/demonstration.md): end-to-end
-  reproduction, controlled fault and live investigation walkthrough,
-  troubleshooting, costs, and safe cleanup.
+**A 100% keyless, GitOps-driven Azure SRE Agent reference architecture built around the _Checkout Reliability Lab_: a deliberately faultable checkout workload, structured Log Analytics telemetry, and an automated 7-kind SRE Agent data-plane reconciliation pipeline.**
 
-## Deployment contract
+[🎯 Start Here](#-documentation-hub) • [🏛️ Architecture](#️-architecture--single-owner-contract) • [🔄 GitOps Data Plane](#-sre-agent-data-plane-gitops-catalog) • [⚡ Quickstart](#-end-to-end-quickstart) • [🔬 Fault & Investigation Flow](#-checkout-reliability-lab-fault--investigation-flow) • [🛡️ CI/CD & Checks](#️-cicd-trust--validation-matrix)
 
-One environment will deploy to **West US 3**, in a new resource group in the
-operator's selected Azure CLI subscription. Terraform will use direct Azure
-provider resources, **not Azure Verified Modules (AVM)**. PowerShell will deploy
-supported SRE Agent data-plane assets.
+</div>
 
-The existing Azure Storage state account is externally owned. Its subscription
-must not be assumed to be the deployment subscription. Use Microsoft Entra Blob
-authentication locally and GitHub OIDC in CI; never use account keys, SAS tokens,
-API keys, PATs, or long-lived client secrets. Do not log short-lived tokens or
-generated webhook URLs.
+---
 
-Pull requests run without Azure access. Later, an owner-merged change to `main`
-will deploy through a dedicated federated identity, without a manual deployment
-approval gate. Unsupported keyless integrations must be documented, not bypassed.
+## ✨ Highlights & Project Status
 
-## Repository map
+> **🟢 Status — All 6 Phases Implemented & Live-Verified:**
+> - **Phase 1–2 (Bootstrap & OIDC State):** Keyless bootstrap (`infra/bootstrap`) and Entra Blob state access verified locally and in hosted GitHub Actions (`verify-bootstrap.yml`, run `43915056852`).
+> - **Phase 3 (Infrastructure & Checkout Lab):** West US 3 SRE Agent (`Microsoft.App/agents@2026-01-01`), Log Analytics workspace (local auth disabled), monitoring UAMI, and private Container Apps checkout worker (`infra/environment`) deployed with zero drift.
+> - **Phase 4 (7-Kind Data-Plane GitOps):** All **8 data-plane assets across all 7 SRE Agent v2 resource kinds** (`connectors`, `commonprompts`, `tools`, `skills`, `hooks`, `agents`, and `scheduledtasks`) converge deterministically via `scripts/Deploy-Assets.ps1`.
+> - **Phase 5 (Zero-Touch `main` Delivery):** End-to-end Terraform + data-plane orchestrator (`scripts/Deploy-Environment.ps1`) verified in hosted GitHub OIDC (`deploy.yml`, runs `43942955764` and `44111399839`).
+> - **Phase 6 (Live Fault, Investigation & Recovery):** Controlled `PAYMENT_PROVIDER_TIMEOUT` fault injection, KQL telemetry correlation, live SRE Agent investigation (`c63b8c97-fac0-42c9-958a-cdca00609ee5`), scheduled-task drift reconciliation, and safe recovery verified in [docs/demonstration.md](docs/demonstration.md).
 
-| Path | Purpose |
-| --- | --- |
-| `docs/` | Charter, phased plan, and future operator documentation |
-| `infra/bootstrap/` | Operator-run local-state Terraform: RG, CI identity, federation and scoped state access |
-| `infra/environment/` | Entra Blob backend, agent, monitoring, private worker and scoped RBAC |
-| `sample/` | Dependency-free synthetic checkout worker and unit tests |
-| `sre-agent/` | Resource-typed SRE Agent GitOps definitions (`manifest.json`, `connectors/`, `common-prompts/`, `tools/`, `skills/`, `hooks/`, `agents/`, and `scheduled-tasks/`) |
-| `scripts/` | PowerShell bootstrap orchestration, backend/probe helpers and local checks |
-| `tests/` | Cloud-free mocked Pester tests |
-| `.github/copilot-instructions.md` | Shared project guidance for Copilot |
-| `.github/skills/deployment-contract-review/` | On-demand deployment ownership and authentication review |
-| `.github/workflows/checks.yml` | Non-deploying workflow validation and secret detection |
-| `.github/workflows/verify-bootstrap.yml` | Trusted main-only OIDC, ARM and Blob/backend verification |
-| `.github/workflows/deploy.yml` | Trusted main-only environment and SRE Agent data-plane deployment |
+| Pillar | What It Means in Practice |
+| :--- | :--- |
+| 🔐 **Zero Keys or Secrets** | **No** storage account keys, SAS tokens, API keys, PATs, GitHub App private keys, or client secrets. Uses **Azure CLI Entra** locally, **GitHub OIDC** in CI, and a dedicated **User-Assigned Managed Identity (UAMI)** for agent telemetry queries. |
+| 🧭 **One Owner Per Object** | **External** owns the shared state storage account. **Bootstrap Terraform** owns the RG, CI UAMI/federation, state container, and bootstrap RBAC. **Environment Terraform** owns the SRE Agent, workspace, worker, and monitoring RBAC. **PowerShell** owns the SRE Agent v2 data-plane catalog. |
+| 🧱 **Direct Providers (No AVM)** | Uses pinned `azurerm` (`5.14.0`) and `azapi` (`2.13.0`) resources directly so preview `Microsoft.App/agents` schemas and keyless storage container operations stay explicit and transparent. |
+| 📦 **Resource-Typed GitOps** | Adding a new connector, prompt, Python tool, skill, hook, subagent, or scheduled task is as simple as adding a folder under `sre-agent/<kind>/<name>/`—zero script or workflow edits required. |
+| 🛡️ **Untrusted PR Isolation** | Pull requests run 6 cloud-free static validation jobs (`actionlint`, `gitleaks`, `terraform fmt/validate`, `pwsh` + Windows PowerShell 5.1 Pester suites, and Python unit tests) with **zero** Azure OIDC permissions or state access. |
 
-## Initial checks
+---
 
-Every PR to `main` and push to `main` runs **Workflow validation** (actionlint)
-and **Secret scan** (Gitleaks), plus **Terraform validation** and PowerShell
-analysis/mocked tests on hosted `pwsh` and Windows PowerShell 5.1, and
-**Sample validation** for the Python worker. No Azure
-identity or repository secrets are provided to PR checks. The separate trusted
-bootstrap verification and environment deployment workflows never run on PRs.
+## 🧭 Documentation Hub
 
-The repository also enables GitHub secret scanning and push protection. These
-are complementary safeguards, not proof that arbitrary content is safe to commit.
+| Phase / Guide | Focus Area | Key Artifacts & Evidence |
+| :--- | :--- | :--- |
+| 📜 **[Project Charter](docs/project-charter.md)** | Vision, boundaries, keyless constraints, and Checkout Reliability Lab goals | Scope decisions & success criteria |
+| 🗺️ **[Implementation Plan](docs/implementation-plan.md)** | Ordered 6-phase delivery plan and completion gates | Phase 1–6 verification checklist |
+| 🤝 **[Contributing Guide](CONTRIBUTING.md)** | Local toolchain setup, exact validation commands, PS 5.1 rules, and PR flow | `actionlint`, `gitleaks`, `Test-Repository.ps1` |
+| 🥾 **[Phase 2: Identity & State Bootstrap](docs/bootstrap.md)** | Operator bootstrap, federated GitHub OIDC identity, container-scoped Blob RBAC | `infra/bootstrap/`, `scripts/Bootstrap.ps1` |
+| 🏗️ **[Phase 3: Environment & Checkout Lab](docs/environment.md)** | West US 3 SRE Agent, Log Analytics, private Python worker, conditioned CI RBAC | `infra/environment/`, `sample/checkout.py` |
+| 🧠 **[Phase 4: Data-Plane GitOps Assets](docs/data-plane.md)** | 7-kind v2 API reconciliation, ownership tags, SHA-256 source bundling, OAuth boundaries | `sre-agent/`, `scripts/DataPlane.ps1` |
+| 🚀 **[Phase 5: GitHub Actions Delivery](docs/delivery.md)** | Unified orchestrator, deterministic asset packaging, serialized `main` OIDC CI/CD | `scripts/Deploy-Environment.ps1`, `deploy.yml` |
+| 🔬 **[Phase 6: Live Demo & Handoff](docs/demonstration.md)** | Fault injection walkthrough, KQL queries, live agent transcript, cost & safe teardown | Thread `c63b8c97-fac0-42c9-958a-cdca00609ee5` |
 
-## License
+---
 
-See [LICENSE](LICENSE).
+## 🏛️ Architecture & Single-Owner Contract
+
+<div align="center">
+  <img src="docs/assets/architecture-overview.svg" alt="System Architecture, Identity Trust and Single-Owner Boundaries" width="100%" />
+</div>
+
+### 🔗 Plane & Identity Topology (Mermaid)
+
+```mermaid
+flowchart TB
+    subgraph Callers["🔐 Keyless Callers & CI/CD"]
+        PR["🛡️ PR Checks (checks.yml)<br/>Cloud-Free • No OIDC / Secrets"]
+        GHA["🚀 GitHub Actions (main)<br/>deploy.yml & verify-bootstrap.yml"]
+        OP["💻 Interactive Operator<br/>Azure CLI + GitHub CLI"]
+    end
+
+    subgraph ExtState["🗄️ External State Subscription / RG"]
+        SA["Storage Account: satfstatecmhcus<br/>Shared Key: Disabled (External Owner)"]
+        SC["Blob Container: sre-checkout<br/>checkout.tfstate (Bootstrap AzAPI Owner)"]
+        SA --> SC
+    end
+
+    subgraph TargetRG["☁️ Target Resource Group: rg-sre-checkout-westus3 (West US 3)"]
+        subgraph BootStack["🥾 infra/bootstrap (Local State)"]
+            CI_ID["🪪 id-sre-checkout-github<br/>Deployment UAMI + main OIDC"]
+            COND_RBAC["⚖️ Conditioned RBAC Delegation<br/>Pinned Roles & Principals Only"]
+        end
+
+        subgraph EnvStack["🏗️ infra/environment (10 ARM Resources)"]
+            CA["🛒 ca-sre-checkout<br/>Private Container App (Python 3.13)"]
+            LAW["📊 law-sre-checkout<br/>Log Analytics (Local Auth Disabled)"]
+            MON_ID["🪪 id-sre-checkout-monitoring<br/>Monitoring UAMI (RG + LAW Reader)"]
+            AGENT["🤖 Microsoft.App/agents<br/>sre-checkout-* (Review Mode)"]
+            CA -->|"Diagnostic Settings<br/>ContainerAppConsoleLogs"| LAW
+            MON_ID -->|"Assigned to Action &<br/>Knowledge Graph"| AGENT
+            LAW -.->|"Queried via KQL"| AGENT
+        end
+    end
+
+    subgraph DataPlane["🧠 SRE Agent Data Plane (https://azuresre.dev)"]
+        DP_CAT["📦 7 Resource Kinds (8 Assets)<br/>connectors → commonprompts → tools →<br/>skills → hooks → agents → scheduledtasks"]
+    end
+
+    OP -->|"1. Bootstrap.ps1"| BootStack
+    OP -->|"Entra Blob RBAC"| SC
+    GHA -->|"OIDC Token Exchange"| CI_ID
+    CI_ID -->|"Entra Blob RBAC"| SC
+    CI_ID -->|"2. Terraform Apply"| EnvStack
+    CI_ID -->|"3. Deploy-Assets.ps1<br/>(SRE Agent Admin)"| DP_CAT
+    AGENT ===|"Hosts v2 ExtendedAgent API"| DP_CAT
+```
+
+### 📋 Strict Ownership Matrix
+
+| Boundary / Object | Single Owner | Control Plane | Identity Used | Guardrail |
+| :--- | :--- | :--- | :--- | :--- |
+| **External State Storage Account** | External prerequisite | Unmanaged | Operator reads ARM metadata only | Never modified, retagged, or deleted; Shared Key remains disabled |
+| **`rg-sre-checkout-westus3` + `id-sre-checkout-github` + `sre-checkout` container** | `infra/bootstrap` | ARM (Operator local state) | Interactive Operator (`az login`) | Protected by `prevent_destroy`; never redeclared in `infra/environment` |
+| **GitHub Actions Variables (`AZURE_*`, `TF_STATE_*`)** | `scripts/Bootstrap.ps1` | GitHub REST/CLI (`gh variable set`) | Interactive Operator (`gh auth login`) | 9 non-secret variables only; zero repository secrets |
+| **SRE Agent, Workspace, Container App, Monitoring UAMI & RBAC** | `infra/environment` | ARM (Entra Blob remote state) | Operator CLI or `id-sre-checkout-github` (OIDC) | Zero-drift convergence; workspace uses AzAPI so shared keys are never exported |
+| **Connectors, Prompts, Tools, Skills, Hooks, Subagents, Schedules** | `scripts/Deploy-Assets.ps1` | SRE Agent Data Plane (`/api/v2/extendedAgent/*`) | Operator CLI or `id-sre-checkout-github` (`https://azuresre.dev`) | Requires `managed-by:checkout-reliability-lab` marker; refuses unmarked objects |
+| **GitHub Code Connection** | Interactive Operator | SRE Agent Portal (OAuth) | Operator GitHub account | Optional one-time OAuth; `sample/checkout.py` snapshot is bundled automatically |
+
+---
+
+## 🔄 SRE Agent Data-Plane GitOps Catalog
+
+<div align="center">
+  <img src="docs/assets/gitops-pipeline.svg" alt="Topological Data-Plane GitOps Pipeline" width="100%" />
+</div>
+
+Definitions and companion files live under `sre-agent/`, driven by [`sre-agent/manifest.json`](sre-agent/manifest.json). `scripts/DataPlane.ps1` discovers every `<kind>/<name>/` directory, validates cross-references before any network call, injects runtime template tokens (`{{WorkspaceCustomerId}}`, `{{SubscriptionId}}`, `{{ResourceGroupName}}`, `{{MonitoringIdentityResourceId}}`, `{{SourceSnapshot}}`, `{{ContextHash}}`), and reconciles all **7 supported v2 resource kinds** in topological dependency order:
+
+| # | Directory & API Kind | Envelope `type` | Deployed Resource(s) | Purpose in Checkout Reliability Lab |
+| :-: | :--- | :--- | :--- | :--- |
+| **1** | `sre-agent/connectors/`<br/>`connectors` | `AgentConnector` | • `checkout-log-analytics`<br/>• `monitor-client` | Binds `law-sre-checkout` using `id-sre-checkout-monitoring` and registers the built-in Azure Monitor MCP connector (with `/connectors/listSecrets` read-back verification). |
+| **2** | `sre-agent/common-prompts/`<br/>`commonprompts` | `CommonPrompt` | • `checkout-guardrails` | Shared read-only investigation rules, bounded 30m KQL windowing, per-revision `order_id` scoping, and anti-hallucination guardrails (`prompt.md`). |
+| **3** | `sre-agent/tools/`<br/>`tools` | `ExtendedAgentTool` | • `checkout-slo-evaluator` | Custom Python function tool (`tool.py`, `toolMode: Auto`) that computes checkout failure rate, latency delta, and breach status against a 5% / 500 ms SLO budget. |
+| **4** | `sre-agent/skills/`<br/>`skills` | `Skill` | • `checkout-investigation` | Step-by-step KQL correlation workflow (`SKILL.md`) bundling the checked-out `sample/checkout.py` source snapshot and its SHA-256 hash. |
+| **5** | `sre-agent/hooks/`<br/>`hooks` | `GlobalHook` | • `checkout-audit-stop-hook` | `Stop`-lifecycle prompt hook (`hook.prompt`) that verifies the final response cites `RevisionName`, `ContextHash`, missing-data windows, and operator-only recovery. |
+| **6** | `sre-agent/agents/`<br/>`agents` | `ExtendedAgent` | • `checkout-investigator` | Specialized subagent (`instructions.md`) wiring `RunAzCliReadCommands`, `checkout-slo-evaluator`, `checkout-guardrails`, and `checkout-investigation`. |
+| **7** | `sre-agent/scheduled-tasks/`<br/>`scheduledtasks` | `ScheduledTask` | • `checkout-daily-investigation` | Daily `0 14 * * *` UTC scheduled investigation routed to `checkout-investigator` in `Review` mode (`status: Paused` by default to prevent idle spend). |
+
+---
+
+## 🔬 Checkout Reliability Lab: Fault & Investigation Flow
+
+The sample workload ([`sample/checkout.py`](sample/checkout.py)) runs inside a private Azure Container App (`ca-sre-checkout`) with no public ingress or external dependencies. Every 10 seconds it emits a structured JSON checkout event to `stdout`, which Azure Monitor routes into the resource-specific `ContainerAppConsoleLogs` table in `law-sre-checkout`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Op as 💻 Operator
+    participant PS as ⚡ Deploy-Environment.ps1
+    participant CA as 🛒 ca-sre-checkout (Container App)
+    participant LAW as 📊 law-sre-checkout (Log Analytics)
+    participant Agent as 🤖 checkout-investigator (SRE Agent)
+    participant Tool as 🐍 checkout-slo-evaluator (Python Tool)
+
+    Op->>PS: Run with -FaultEnabled
+    PS->>CA: Terraform updates CHECKOUT_FAULT_ENABLED="true" (New Revision)
+    loop Every 10 seconds
+        CA->>LAW: Orders 1..4 -> status="succeeded", duration_ms=42
+        CA->>LAW: Every 5th Order -> status="failed", error_code="PAYMENT_PROVIDER_TIMEOUT", duration_ms=3000
+    end
+    Op->>Agent: Prompt investigation (last 30 minutes)
+    Agent->>LAW: Query ContainerAppConsoleLogs via id-sre-checkout-monitoring
+    LAW-->>Agent: Healthy revision (42ms) vs. Fault revision (every 5th order 3000ms timeout)
+    Agent->>Tool: Pass succeeded/failed counts & durations by RevisionName
+    Tool-->>Agent: SLO Breach: 20% failure rate (>5% budget), 3000ms latency (>500ms budget)
+    Agent-->>Op: Evidence report citing RevisionName, order_id, sample/checkout.py SHA-256 & operator recovery command
+    Op->>PS: Run without -FaultEnabled (Restore healthy revision)
+```
+
+---
+
+## ⚡ End-to-End Quickstart
+
+### 1️⃣ One-Time Operator Bootstrap
+
+Sign in interactively to Azure CLI and GitHub CLI, select your target deployment subscription, and run `Bootstrap.ps1` with the full ARM resource ID of your external state storage account:
+
+```powershell
+az login
+az account set --subscription <target-subscription-id>
+gh auth login
+
+$stateAccountId = '/subscriptions/<state-sub>/resourceGroups/<state-rg>/providers/Microsoft.Storage/storageAccounts/<account>'
+.\scripts\Bootstrap.ps1 -StateStorageAccountId $stateAccountId -Apply -ConfigureGitHub
+```
+
+### 2️⃣ Deploy Infrastructure & All 7 Data-Plane Resource Kinds
+
+Run the unified orchestrator locally (works identically in `pwsh` and Windows PowerShell 5.1):
+
+```powershell
+.\scripts\Deploy-Environment.ps1 `
+    -StorageAccountName <account> `
+    -ContainerName sre-checkout `
+    -StateKey checkout.tfstate `
+    -Authentication AzureCli
+```
+
+On the **first** operator deployment, grant the bootstrap stack's conditioned CI RBAC delegation so GitHub Actions on `main` can manage the environment's deterministic role assignments:
+
+```powershell
+$monitoringPrincipal = terraform -chdir=infra\environment output -raw monitoring_principal_id
+.\scripts\Bootstrap.ps1 `
+    -StateStorageAccountId $stateAccountId `
+    -MonitoringPrincipalId $monitoringPrincipal `
+    -Apply `
+    -ConfigureGitHub
+```
+
+### 3️⃣ Inject the Controlled Fault & Recover
+
+```powershell
+# Inject deterministic PAYMENT_PROVIDER_TIMEOUT on every 5th order
+.\scripts\Deploy-Environment.ps1 `
+    -StorageAccountName <account> `
+    -ContainerName sre-checkout `
+    -StateKey checkout.tfstate `
+    -Authentication AzureCli `
+    -FaultEnabled
+
+# Restore healthy checkout traffic (fault_enabled = false)
+.\scripts\Deploy-Environment.ps1 `
+    -StorageAccountName <account> `
+    -ContainerName sre-checkout `
+    -StateKey checkout.tfstate `
+    -Authentication AzureCli
+```
+
+> 💡 **Walkthrough & KQL Queries:** Follow [docs/demonstration.md](docs/demonstration.md) for the exact Log Analytics verification script, SRE Agent investigation prompt, live thread evidence, and non-destructive teardown instructions.
+
+---
+
+## 🗂️ Repository Map
+
+```text
+Azure-SRE-Agent-Deployment-Automation/
+├── .github/
+│   ├── copilot-instructions.md               # Repository-wide Copilot guardrails
+│   ├── skills/deployment-contract-review/    # Ownership & keyless boundary review skill
+│   └── workflows/
+│       ├── checks.yml                        # Cloud-free PR & main static validation (6 jobs)
+│       ├── verify-bootstrap.yml              # Trusted main-only OIDC & Blob lease verification
+│       └── deploy.yml                        # Trusted main-only Terraform + data-plane delivery
+├── docs/
+│   ├── assets/                               # Custom SVG architecture & pipeline diagrams
+│   ├── project-charter.md                    # Vision, scope, and keyless constraints
+│   ├── implementation-plan.md                # 6-phase plan and completion criteria
+│   ├── bootstrap.md                          # Phase 2 identity & remote-state bootstrap guide
+│   ├── environment.md                        # Phase 3 Terraform infrastructure & workload guide
+│   ├── data-plane.md                         # Phase 4 7-kind SRE Agent data-plane guide
+│   ├── delivery.md                           # Phase 5 GitHub Actions OIDC delivery guide
+│   └── demonstration.md                      # Phase 6 fault/investigation walkthrough & cleanup
+├── infra/
+│   ├── bootstrap/                            # Operator local-state Terraform (RG, CI UAMI, OIDC, container)
+│   └── environment/                          # Entra Blob backend Terraform (SRE Agent, LAW, Container App, RBAC)
+├── sample/
+│   ├── checkout.py                           # Dependency-free synthetic checkout emitter (Python 3.13)
+│   └── test_checkout.py                      # Standard-library unit tests for healthy & fault modes
+├── sre-agent/
+│   ├── manifest.json                         # Schema v1 topological kind registry & ownership marker
+│   ├── connectors/                           # AgentConnector definitions (Log Analytics & Monitor MCP)
+│   ├── common-prompts/                       # CommonPrompt shared guardrails (JSON + Markdown)
+│   ├── tools/                                # ExtendedAgentTool custom Python SLO evaluator (JSON + .py)
+│   ├── skills/                               # Skill definition & runbook bundling sample/checkout.py
+│   ├── hooks/                                # GlobalHook Stop-event audit checklist (JSON + Markdown)
+│   ├── agents/                               # ExtendedAgent subagent wiring tools, prompts & skills
+│   └── scheduled-tasks/                      # ScheduledTask daily investigation definition (Paused)
+├── scripts/
+│   ├── Common.ps1                            # Keyless environment assertions & native command wrappers
+│   ├── Bootstrap.ps1                         # Operator bootstrap & GitHub variable configuration
+│   ├── Initialize-Backend.ps1                # Entra Blob backend initializer (AzureCli / GitHubOidc)
+│   ├── Test-StateAccess.ps1                  # Non-state Blob write/lease/cleanup probe
+│   ├── DataPlane.ps1                         # 7-kind discovery, cross-ref validation, packaging & v2 API client
+│   ├── Deploy-Assets.ps1                     # Scoped ARM discovery & idempotent data-plane deployer
+│   ├── Deploy-Environment.ps1                # Unified Terraform + packaged data-plane orchestrator
+│   └── Test-Repository.ps1                   # PSScriptAnalyzer + Pester runner (pwsh & PS 5.1)
+└── tests/                                    # 51 cloud-free mocked Pester tests across 4 test suites
+```
+
+---
+
+## 🛡️ CI/CD Trust & Validation Matrix
+
+```mermaid
+flowchart LR
+    subgraph PR["🔓 Pull Requests & Push (checks.yml — No Azure Access)"]
+        direction TB
+        J1["✅ Workflow validation (actionlint 1.7.12)"]
+        J2["✅ Secret scan (Gitleaks 8.30.1)"]
+        J3["✅ Terraform validation (fmt + bootstrap/env validate)"]
+        J4["✅ PowerShell (pwsh — PSScriptAnalyzer + 51 Pester tests)"]
+        J5["✅ PowerShell (Windows PS 5.1 — PSScriptAnalyzer + 51 Pester tests)"]
+        J6["✅ Sample validation (Python unittest suite)"]
+    end
+
+    subgraph MainOnly["🔐 Trusted Merge to main (OIDC id-token: write • Concurrency: sre-checkout-deployment)"]
+        direction TB
+        VB["🥾 Verify keyless bootstrap<br/>(verify-bootstrap.yml)"]
+        DE["🚀 Deploy checkout environment<br/>(deploy.yml -> Deploy-Environment.ps1)"]
+        VB -.->|"Serialized (cancel-in-progress: false)"| DE
+    end
+
+    PR -->|"Owner Merge Commit<br/>(Protected main)"| MainOnly
+```
+
+- **Required Branch Protection Checks:** `Workflow validation` and `Secret scan` run on every PR and push without path filters.
+- **Defense in Depth:** GitHub secret scanning and push protection are enabled alongside full-history Gitleaks checks, immutable SHA-pinned GitHub Actions, and `Assert-KeylessEnvironment` runtime variable guards.
+
+---
+
+## 📄 License
+
+Released under the [MIT License](LICENSE).

@@ -1,9 +1,21 @@
-# Phase 2: identity and state bootstrap
+# 🥾 Phase 2: Identity and State Bootstrap
+
+> **Navigation:** [🏠 README](../README.md) • [📜 Charter](project-charter.md) • [🗺️ Plan](implementation-plan.md) • **🥾 Phase 2: Bootstrap** • [🏗️ Phase 3: Environment](environment.md) • [🧠 Phase 4: Data Plane](data-plane.md) • [🚀 Phase 5: Delivery](delivery.md) • [🔬 Phase 6: Demo](demonstration.md)
 
 The initial bootstrap creates seven Terraform-owned objects: one resource group in
 West US 3, a GitHub deployment UAMI, its main-branch federated credential, one
 private state container, and three role assignments. It does not create an SRE
 Agent, workload, or agent data-plane assets.
+
+```mermaid
+flowchart LR
+    Op["💻 Interactive Operator<br/>(az login + gh auth login)"] -->|"scripts/Bootstrap.ps1 -Apply -ConfigureGitHub"| TF["🥾 infra/bootstrap<br/>(Local State)"]
+    TF --> RG["☁️ rg-sre-checkout-westus3<br/>(West US 3)"]
+    TF --> UAMI["🪪 id-sre-checkout-github<br/>+ github-main OIDC Subject"]
+    TF --> Cont["📦 sre-checkout Container<br/>(in external satfstatecmhcus)"]
+    TF --> RBAC["🔐 Scoped Role Assignments<br/>RG Contributor + Container Blob Data"]
+    TF --> GH["⚙️ 9 Non-Secret GitHub Variables<br/>(AZURE_* & TF_STATE_*)"]
+```
 
 ## Ownership and permissions
 
