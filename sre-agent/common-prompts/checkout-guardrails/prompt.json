@@ -1,0 +1,10 @@
+{
+  "name": "checkout-guardrails",
+  "type": "CommonPrompt",
+  "contentFiles": {
+    "prompt": "prompt.md"
+  },
+  "properties": {
+    "prompt": ""
+  }
+}

@@ -6,14 +6,32 @@
     {
       "directory": "connectors",
       "kind": "connectors",
-      "type": "DataConnector",
+      "type": "AgentConnector",
       "manifestFile": "connector.json"
+    },
+    {
+      "directory": "common-prompts",
+      "kind": "commonprompts",
+      "type": "CommonPrompt",
+      "manifestFile": "prompt.json"
+    },
+    {
+      "directory": "tools",
+      "kind": "tools",
+      "type": "ExtendedAgentTool",
+      "manifestFile": "tool.json"
     },
     {
       "directory": "skills",
       "kind": "skills",
       "type": "Skill",
       "manifestFile": "skill.json"
+    },
+    {
+      "directory": "hooks",
+      "kind": "hooks",
+      "type": "GlobalHook",
+      "manifestFile": "hook.json"
     },
     {
       "directory": "agents",
@@ -26,12 +44,6 @@
       "kind": "scheduledtasks",
       "type": "ScheduledTask",
       "manifestFile": "task.json"
-    },
-    {
-      "directory": "hooks",
-      "kind": "hooks",
-      "type": "Hook",
-      "manifestFile": "hook.json"
     }
   ]
 }

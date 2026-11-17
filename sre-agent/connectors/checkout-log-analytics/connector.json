@@ -1,0 +1,16 @@
+{
+  "name": "checkout-log-analytics",
+  "type": "AgentConnector",
+  "properties": {
+    "dataConnectorType": "LogAnalytics",
+    "dataSource": "law-sre-checkout",
+    "identity": "/subscriptions/{{SubscriptionId}}/resourceGroups/{{ResourceGroup}}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-sre-checkout-monitoring",
+    "extendedProperties": {
+      "description": "Checkout Lab Log Analytics workspace connector authenticated with the monitoring user-assigned managed identity.",
+      "subscriptionId": "{{SubscriptionId}}",
+      "resourceGroup": "{{ResourceGroup}}",
+      "workspaceName": "law-sre-checkout",
+      "workspaceId": "{{WorkspaceId}}"
+    }
+  }
+}

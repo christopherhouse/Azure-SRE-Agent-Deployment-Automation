@@ -1,0 +1,14 @@
+{
+  "name": "monitor-client",
+  "type": "AgentConnector",
+  "properties": {
+    "dataConnectorType": "MonitorClient",
+    "dataSource": "n/a",
+    "identity": "",
+    "extendedProperties": {
+      "displayName": "Azure Monitor",
+      "description": "Azure Monitor MCP backend connector for Log Analytics queries.",
+      "icon": "azuremonitor"
+    }
+  }
+}

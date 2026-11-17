@@ -94,6 +94,69 @@ function Test-AgentValue {
     return ($Expected -eq $Actual)
 }
 
+function Expand-AssetTemplateValue {
+    [CmdletBinding()]
+    param(
+        [AllowNull()] $InputObject,
+        [Parameter(Mandatory = $true)] [hashtable] $Values,
+        [Parameter(Mandatory = $true)] [string] $SourceName
+    )
+
+    if ($null -eq $InputObject) { return $null }
+    if ($InputObject -is [string]) {
+        $expanded = $InputObject
+        foreach ($key in $Values.Keys) {
+            $expanded = $expanded.Replace("{{$key}}", $Values[$key])
+        }
+        if ($expanded -match '{{[A-Za-z0-9_]+}}') {
+            throw "Unresolved asset template value in '$SourceName'."
+        }
+        return $expanded
+    }
+    if ($InputObject -is [array]) {
+        for ($index = 0; $index -lt $InputObject.Count; $index++) {
+            $InputObject[$index] = Expand-AssetTemplateValue -InputObject $InputObject[$index] -Values $Values -SourceName $SourceName
+        }
+        return , $InputObject
+    }
+    if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($prop in @($InputObject.PSObject.Properties)) {
+            $InputObject.($prop.Name) = Expand-AssetTemplateValue -InputObject $prop.Value -Values $Values -SourceName $SourceName
+        }
+        return $InputObject
+    }
+    return $InputObject
+}
+
+function Set-AssetPropertyContent {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] $Properties,
+        [Parameter(Mandatory = $true)] [string] $PropertyPath,
+        [Parameter(Mandatory = $true)] [string] $Value,
+        [Parameter(Mandatory = $true)] [string] $FileName,
+        [Parameter(Mandatory = $true)] [string] $AssetKey
+    )
+
+    $segments = @($PropertyPath -split '\.')
+    $target = $Properties
+    for ($i = 0; $i -lt ($segments.Count - 1); $i++) {
+        $segment = $segments[$i]
+        if ($null -eq $target -or $target -isnot [System.Management.Automation.PSCustomObject] -or
+            $null -eq $target.PSObject.Properties[$segment]) {
+            throw "Invalid asset content mapping '$FileName' for '$AssetKey'."
+        }
+        $target = $target.$segment
+    }
+    $leaf = $segments[$segments.Count - 1]
+    if ($null -eq $target -or $target -isnot [System.Management.Automation.PSCustomObject] -or
+        $null -eq $target.PSObject.Properties[$leaf]) {
+        throw "Invalid asset content mapping '$FileName' for '$AssetKey'."
+    }
+    $target.$leaf = $Value
+}
+
 function Get-SreAgentAsset {
     [CmdletBinding()]
     param(
@@ -129,13 +192,15 @@ function Get-SreAgentAsset {
         SourceContext  = (Get-Content -LiteralPath $sourcePath -Raw).Replace("`r`n", "`n").TrimEnd()
     }
     $supportedKinds = @{
-        connectors     = @{ Directory = 'connectors';      Kind = 'connectors';     Type = 'DataConnector'; ManifestFile = 'connector.json' }
-        skills         = @{ Directory = 'skills';          Kind = 'skills';         Type = 'Skill';         ManifestFile = 'skill.json' }
-        agents         = @{ Directory = 'agents';          Kind = 'agents';         Type = 'ExtendedAgent'; ManifestFile = 'agent.json' }
-        scheduledtasks = @{ Directory = 'scheduled-tasks'; Kind = 'scheduledtasks'; Type = 'ScheduledTask'; ManifestFile = 'task.json' }
-        hooks          = @{ Directory = 'hooks';           Kind = 'hooks';          Type = 'Hook';          ManifestFile = 'hook.json' }
+        connectors     = @{ Directory = 'connectors';      Kind = 'connectors';     Type = 'AgentConnector';    ManifestFile = 'connector.json' }
+        commonprompts  = @{ Directory = 'common-prompts';  Kind = 'commonprompts';  Type = 'CommonPrompt';      ManifestFile = 'prompt.json' }
+        tools          = @{ Directory = 'tools';           Kind = 'tools';          Type = 'ExtendedAgentTool'; ManifestFile = 'tool.json' }
+        skills         = @{ Directory = 'skills';          Kind = 'skills';         Type = 'Skill';             ManifestFile = 'skill.json' }
+        hooks          = @{ Directory = 'hooks';           Kind = 'hooks';          Type = 'GlobalHook';        ManifestFile = 'hook.json' }
+        agents         = @{ Directory = 'agents';          Kind = 'agents';         Type = 'ExtendedAgent';     ManifestFile = 'agent.json' }
+        scheduledtasks = @{ Directory = 'scheduled-tasks'; Kind = 'scheduledtasks'; Type = 'ScheduledTask';     ManifestFile = 'task.json' }
     }
-    $defaultOrder = @('connectors', 'skills', 'agents', 'scheduledtasks', 'hooks')
+    $defaultOrder = @('connectors', 'commonprompts', 'tools', 'skills', 'hooks', 'agents', 'scheduledtasks')
     $kindSpecs = @()
     if ($manifest.PSObject.Properties.Name -contains 'kinds' -and $null -ne $manifest.kinds) {
         $seenKinds = @{}
@@ -191,12 +256,13 @@ function Get-SreAgentAsset {
             }
             $seenAssets[$assetKey] = $true
 
+            $asset.properties = Expand-AssetTemplateValue -InputObject $asset.properties -Values $values -SourceName $resourceManifestPath
+
             $contentFiles = @()
             if ($asset.PSObject.Properties.Name -contains 'contentFiles' -and $null -ne $asset.contentFiles) {
                 foreach ($property in $asset.contentFiles.PSObject.Properties) {
                     $fileName = [string] $property.Value
-                    if ($fileName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*[.](md|txt|json|kql|yaml|yml)$' -or
-                        $asset.properties.PSObject.Properties.Name -notcontains $property.Name) {
+                    if ($fileName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]*[.](md|txt|json|kql|yaml|yml|py)$') {
                         throw "Invalid asset content mapping '$fileName' for '$assetKey'."
                     }
                     $contentPath = Join-Path $resourceDir.FullName $fileName
@@ -204,19 +270,22 @@ function Get-SreAgentAsset {
                         throw "Asset content file not found: $contentPath"
                     }
                     $contentFiles += $fileName
-                    $content = (Get-Content -LiteralPath $contentPath -Raw).Replace("`r`n", "`n")
-                    foreach ($key in $values.Keys) {
-                        $content = $content.Replace("{{$key}}", $values[$key])
-                    }
-                    if ($content -match '{{[A-Za-z0-9_]+}}') {
-                        throw "Unresolved asset template value in '$contentPath'."
-                    }
-                    $asset.properties.($property.Name) = $content
+                    $rawContent = (Get-Content -LiteralPath $contentPath -Raw).Replace("`r`n", "`n")
+                    $content = Expand-AssetTemplateValue -InputObject $rawContent -Values $values -SourceName $contentPath
+                    Set-AssetPropertyContent -Properties $asset.properties -PropertyPath $property.Name `
+                        -Value $content -FileName $fileName -AssetKey $assetKey
                 }
             }
             if ($spec.Kind -eq 'scheduledtasks') {
                 # This preview persists task descriptions/status but drops envelope tags.
                 $asset.properties.description += " [$($manifest.owner)]"
+            }
+            if ($spec.Kind -eq 'connectors' -and
+                $null -ne $asset.properties.extendedProperties -and
+                $asset.properties.extendedProperties.PSObject.Properties.Name -contains 'description' -and
+                $asset.properties.extendedProperties.description -is [string]) {
+                # Connector read-back drops envelope tags; persist the ownership marker in extendedProperties.description.
+                $asset.properties.extendedProperties.description += " [$($manifest.owner)]"
             }
             $results += [pscustomobject]@{
                 Kind         = $spec.Kind
@@ -243,6 +312,25 @@ function Get-SreAgentAsset {
             foreach ($skillName in @($item.Envelope.properties.allowedSkills)) {
                 if (-not $seenAssets.ContainsKey("skills/$skillName")) {
                     throw "Agent '$($item.Envelope.name)' references unknown skill '$skillName'."
+                }
+            }
+        }
+        if ($item.Kind -eq 'agents' -and
+            $item.Envelope.properties.PSObject.Properties.Name -contains 'commonPrompts' -and
+            $null -ne $item.Envelope.properties.commonPrompts) {
+            foreach ($promptName in @($item.Envelope.properties.commonPrompts)) {
+                if (-not $seenAssets.ContainsKey("commonprompts/$promptName")) {
+                    throw "Agent '$($item.Envelope.name)' references unknown common prompt '$promptName'."
+                }
+            }
+        }
+        if ($item.Kind -eq 'agents' -and
+            $item.Envelope.properties.PSObject.Properties.Name -contains 'tools' -and
+            $null -ne $item.Envelope.properties.tools) {
+            foreach ($toolName in @($item.Envelope.properties.tools)) {
+                if ([string] $toolName -cmatch '^[a-z0-9][a-z0-9-]{1,62}$' -and
+                    -not $seenAssets.ContainsKey("tools/$toolName")) {
+                    throw "Agent '$($item.Envelope.name)' references unknown custom tool '$toolName'."
                 }
             }
         }
@@ -282,10 +370,48 @@ function Test-AgentOwnership {
         return $false
     }
     if ($Kind -eq 'scheduledtasks') {
-        return ($Actual.properties.description -is [string] -and
+        return ($null -ne $Actual.properties -and
+            $null -ne $Actual.properties.PSObject.Properties['description'] -and
+            $Actual.properties.description -is [string] -and
             $Actual.properties.description.EndsWith(" [$($Expected.tags[0])]", [StringComparison]::Ordinal))
     }
-    return (@($Actual.tags) -ccontains $Expected.tags[0])
+    if ($Kind -eq 'connectors') {
+        if ($null -ne $Actual.PSObject.Properties['tags'] -and @($Actual.tags) -ccontains $Expected.tags[0]) {
+            return $true
+        }
+        return ($null -ne $Actual.properties -and
+            $null -ne $Actual.properties.PSObject.Properties['extendedProperties'] -and
+            $null -ne $Actual.properties.extendedProperties -and
+            $null -ne $Actual.properties.extendedProperties.PSObject.Properties['description'] -and
+            $Actual.properties.extendedProperties.description -is [string] -and
+            $Actual.properties.extendedProperties.description.EndsWith(" [$($Expected.tags[0])]", [StringComparison]::Ordinal))
+    }
+    return ($null -ne $Actual.PSObject.Properties['tags'] -and @($Actual.tags) -ccontains $Expected.tags[0])
+}
+
+function Get-AgentResource {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string] $Endpoint,
+        [Parameter(Mandatory = $true)] [hashtable] $Headers,
+        [Parameter(Mandatory = $true)] [string] $Kind,
+        [Parameter(Mandatory = $true)] [string] $Name,
+        [Parameter(Mandatory = $true)] [string] $Uri
+    )
+
+    $resource = Invoke-AgentRequest -Method GET -Uri $Uri -Headers $Headers -AllowNotFound
+    if ($null -ne $resource -and $Kind -eq 'connectors' -and
+        $null -ne $resource.properties -and
+        ($null -eq $resource.properties.PSObject.Properties['dataSource'] -or $null -eq $resource.properties.dataSource)) {
+        $secrets = Invoke-AgentRequest -Method GET -Uri "$Endpoint/api/v2/extendedAgent/connectors/listSecrets" -Headers $Headers
+        if ($null -ne $secrets -and $null -ne $secrets.PSObject.Properties['value'] -and $null -ne $secrets.value) {
+            $unmasked = @($secrets.value | Where-Object { $_.name -ceq $Name })
+            if ($unmasked.Count -gt 0) {
+                return $unmasked[0]
+            }
+        }
+    }
+    return $resource
 }
 
 function Sync-SreAgentAsset {
@@ -300,7 +426,7 @@ function Sync-SreAgentAsset {
     foreach ($asset in $Assets) {
         $desired = $asset.Envelope
         $uri = "$Endpoint/api/v2/extendedAgent/$($asset.Kind)/$($desired.name)"
-        $existing = Invoke-AgentRequest -Method GET -Uri $uri -Headers $Headers -AllowNotFound
+        $existing = Get-AgentResource -Endpoint $Endpoint -Headers $Headers -Kind $asset.Kind -Name $desired.name -Uri $uri
         if ($null -ne $existing) {
             if (-not (Test-AgentOwnership -Expected $desired -Actual $existing -Kind $asset.Kind)) {
                 throw "Refusing unmanaged or incompatible $($asset.Kind)/$($desired.name). Verify ownership manually; automatic adoption is not supported."
@@ -319,7 +445,7 @@ function Sync-SreAgentAsset {
         $null = Invoke-AgentRequest -Method PUT -Uri $item.Uri -Headers $Headers -Body $body
         $verified = $false
         for ($attempt = 1; $attempt -le 4; $attempt++) {
-            $actual = Invoke-AgentRequest -Method GET -Uri $item.Uri -Headers $Headers -AllowNotFound
+            $actual = Get-AgentResource -Endpoint $Endpoint -Headers $Headers -Kind $item.Asset.Kind -Name $desired.name -Uri $item.Uri
             if ((Test-AgentOwnership -Expected $desired -Actual $actual -Kind $item.Asset.Kind) -and
                 (Test-AgentValue $desired.properties $actual.properties)) {
                 $verified = $true

@@ -19,18 +19,50 @@ Describe 'SRE Agent resource tree discovery and rendering' {
     It 'renders valid envelopes, source snapshot and scoped prompts without unresolved tokens' {
         $assets = @(Get-SreAgentAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
-        $assets.Count | Should -Be 3
-        $skill = $assets[0].Envelope
+        $assets.Count | Should -Be 8
+
+        $logConnector = $assets[0].Envelope
+        $logConnector.type | Should -Be 'AgentConnector'
+        $logConnector.name | Should -Be 'checkout-log-analytics'
+        $logConnector.properties.identity | Should -Match $script:subscription
+        $logConnector.properties.extendedProperties.workspaceId | Should -Be $script:workspace
+        $logConnector.properties.extendedProperties.description | Should -Match '\[managed-by:checkout-reliability-lab\]$'
+
+        $monitorConnector = $assets[1].Envelope
+        $monitorConnector.type | Should -Be 'AgentConnector'
+        $monitorConnector.name | Should -Be 'monitor-client'
+
+        $commonPrompt = $assets[2].Envelope
+        $commonPrompt.type | Should -Be 'CommonPrompt'
+        $commonPrompt.properties.prompt | Should -Match $script:workspace
+
+        $tool = $assets[3].Envelope
+        $tool.type | Should -Be 'ExtendedAgentTool'
+        $tool.properties.type | Should -Be 'PythonFunctionTool'
+        $tool.properties.functionCode | Should -Match 'def main\('
+
+        $skill = $assets[4].Envelope
         $skill.type | Should -Be 'Skill'
         $skill.tags | Should -Contain 'managed-by:checkout-reliability-lab'
         $skill.properties.skillContent | Should -Match $script:workspace
         $skill.properties.skillContent | Should -Match 'sequence % 5 == 0'
         $skill.properties.skillContent | Should -Match 'ContainerAppConsoleLogs'
         $skill.properties.skillContent | Should -Match 'SHA-256\s+`[a-f0-9]{64}`'
-        ($assets | ConvertTo-Json -Depth 30) | Should -Not -Match '{{[A-Za-z]+}}'
-        $assets[1].Envelope.properties.allowedSkills | Should -Contain $skill.name
-        $assets[2].Envelope.properties.agent | Should -Be $assets[1].Envelope.name
-        $assets[2].Envelope.properties.status | Should -Be 'Paused'
+
+        $hook = $assets[5].Envelope
+        $hook.type | Should -Be 'GlobalHook'
+        $hook.properties.hook.prompt | Should -Match $script:workspace
+
+        $agent = $assets[6].Envelope
+        $agent.properties.allowedSkills | Should -Contain $skill.name
+        $agent.properties.commonPrompts | Should -Contain $commonPrompt.name
+        $agent.properties.tools | Should -Contain $tool.name
+
+        $task = $assets[7].Envelope
+        $task.properties.agent | Should -Be $agent.name
+        $task.properties.status | Should -Be 'Paused'
+
+        ($assets | ConvertTo-Json -Depth 30) | Should -Not -Match '{{[A-Za-z0-9_]+}}'
     }
 
     It 'compares only intended fields while detecting case, type and array changes' {
@@ -53,14 +85,21 @@ Describe 'SRE Agent resource tree discovery and rendering' {
         $package.PackagePath | Should -Be $destination
         $package.SourceSha256 | Should -Match '^[a-f0-9]{64}$'
         $package.AssetNames | Should -Be @(
+            'connectors/checkout-log-analytics',
+            'connectors/monitor-client',
+            'commonprompts/checkout-guardrails',
+            'tools/checkout-slo-evaluator',
             'skills/checkout-investigation',
+            'hooks/checkout-audit-stop-hook',
             'agents/checkout-investigator',
             'scheduledtasks/checkout-daily-investigation'
         )
         $stagedFiles = @(Get-ChildItem -LiteralPath $destination -Recurse -File | ForEach-Object { $_.Name } | Sort-Object)
         $stagedFiles | Should -Be @(
-            'agent.json', 'checkout.py', 'instructions.md', 'manifest.json',
-            'prompt.md', 'skill.json', 'SKILL.md', 'task.json'
+            'agent.json', 'checkout.py', 'connector.json', 'connector.json',
+            'hook.json', 'instructions.md', 'manifest.json', 'prompt.json',
+            'prompt.md', 'prompt.md', 'prompt.md', 'skill.json',
+            'SKILL.md', 'task.json', 'tool.json', 'tool.py'
         )
         $fromRepo = @(Get-SreAgentAsset -RepositoryRoot $script:root -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
@@ -72,33 +111,46 @@ Describe 'SRE Agent resource tree discovery and rendering' {
             Should -Throw '*already exists*'
     }
 
-    It 'discovers additional SRE Agent resource kinds and multiple resources in topological order without script changes' {
+    It 'discovers additional SRE Agent resources in topological order and validates cross-references' {
         $tempRepo = Join-Path $TestDrive ('multi-kind-' + [Guid]::NewGuid().ToString('N'))
         Copy-Item -LiteralPath (Join-Path $script:root 'sre-agent') -Destination (Join-Path $tempRepo 'sre-agent') -Recurse
         Copy-Item -LiteralPath (Join-Path $script:root 'sample') -Destination (Join-Path $tempRepo 'sample') -Recurse
 
-        $connectorDir = Join-Path $tempRepo 'sre-agent\connectors\azure-monitor-logs'
         $extraSkillDir = Join-Path $tempRepo 'sre-agent\skills\zeta-latency-triage'
-        $hookDir = Join-Path $tempRepo 'sre-agent\hooks\critical-incident-hook'
-        New-Item -ItemType Directory -Path @($connectorDir, $extraSkillDir, $hookDir) -Force | Out-Null
-
-        Set-Content -LiteralPath (Join-Path $connectorDir 'connector.json') -Value '{"name":"azure-monitor-logs","type":"DataConnector","properties":{"dataConnectorType":"AzureMonitor"}}'
+        New-Item -ItemType Directory -Path $extraSkillDir -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $extraSkillDir 'skill.json') -Value '{"name":"zeta-latency-triage","type":"Skill","properties":{"description":"Triage latency.","tools":["RunAzCliReadCommands"],"skillContent":""},"contentFiles":{"skillContent":"SKILL.md"}}'
         Set-Content -LiteralPath (Join-Path $extraSkillDir 'SKILL.md') -Value 'Inspect workspace {{WorkspaceId}} in {{ResourceGroup}}.'
-        Set-Content -LiteralPath (Join-Path $hookDir 'hook.json') -Value '{"name":"critical-incident-hook","type":"Hook","properties":{"enabled":false}}'
 
         $discovered = @(Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace)
         @($discovered | ForEach-Object { "$($_.Kind)/$($_.Envelope.name)" }) | Should -Be @(
-            'connectors/azure-monitor-logs',
+            'connectors/checkout-log-analytics',
+            'connectors/monitor-client',
+            'commonprompts/checkout-guardrails',
+            'tools/checkout-slo-evaluator',
             'skills/checkout-investigation',
             'skills/zeta-latency-triage',
+            'hooks/checkout-audit-stop-hook',
             'agents/checkout-investigator',
-            'scheduledtasks/checkout-daily-investigation',
-            'hooks/critical-incident-hook'
+            'scheduledtasks/checkout-daily-investigation'
         )
 
-        Set-Content -LiteralPath (Join-Path $hookDir 'hook.json') -Value '{"name":"mismatched-name","type":"Hook","properties":{"enabled":false}}'
+        $agentManifestPath = Join-Path $tempRepo 'sre-agent\agents\checkout-investigator\agent.json'
+        $agentJson = Get-Content -LiteralPath $agentManifestPath -Raw | ConvertFrom-Json
+        $agentJson.properties.commonPrompts = @('missing-prompt')
+        Set-Content -LiteralPath $agentManifestPath -Value ($agentJson | ConvertTo-Json -Depth 10)
+        { Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace } |
+            Should -Throw "*unknown common prompt 'missing-prompt'*"
+
+        $agentJson.properties.commonPrompts = @('checkout-guardrails')
+        $agentJson.properties.tools = @('RunAzCliReadCommands', 'missing-custom-tool')
+        Set-Content -LiteralPath $agentManifestPath -Value ($agentJson | ConvertTo-Json -Depth 10)
+        { Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
+            -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace } |
+            Should -Throw "*unknown custom tool 'missing-custom-tool'*"
+
+        Set-Content -LiteralPath (Join-Path $extraSkillDir 'skill.json') -Value '{"name":"mismatched-name","type":"Skill","properties":{"description":"Bad"}}'
         { Get-SreAgentAsset -RepositoryRoot $tempRepo -SubscriptionId $script:subscription `
             -ResourceGroup rg-sre-checkout-westus3 -WorkspaceId $script:workspace } |
             Should -Throw '*must be lowercase kebab-case and match its directory name*'
@@ -199,10 +251,10 @@ Describe 'Owned asset convergence' {
     It 'creates, reads back and reruns without duplicate writes, then converges an owned edit' {
         Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
         Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
-        Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
+        Should -Invoke Invoke-AgentRequest -Times 8 -Exactly -ParameterFilter { $Method -eq 'PUT' }
         $script:store["$script:endpoint/api/v2/extendedAgent/agents/checkout-investigator"].properties.instructions = 'outdated'
         Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
-        Should -Invoke Invoke-AgentRequest -Times 4 -Exactly -ParameterFilter { $Method -eq 'PUT' }
+        Should -Invoke Invoke-AgentRequest -Times 9 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
 
     It 'preflights all names and refuses an unmanaged object before any writes' {
@@ -224,11 +276,36 @@ Describe 'Owned asset convergence' {
         } -ParameterFilter { $Uri -match '/scheduledtasks/' }
         Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
         Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
-        Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
+        Should -Invoke Invoke-AgentRequest -Times 8 -Exactly -ParameterFilter { $Method -eq 'PUT' }
         $script:store["$script:endpoint/api/v2/extendedAgent/scheduledtasks/checkout-daily-investigation"].properties.description = 'unmanaged'
         { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
             Should -Throw '*Refusing unmanaged*'
-        Should -Invoke Invoke-AgentRequest -Times 3 -Exactly -ParameterFilter { $Method -eq 'PUT' }
+        Should -Invoke Invoke-AgentRequest -Times 8 -Exactly -ParameterFilter { $Method -eq 'PUT' }
+    }
+
+    It 'uses listSecrets fallback and extendedProperties.description ownership marker when connector GET masks properties' {
+        Mock Invoke-AgentRequest {
+            if ($Method -eq 'PUT') {
+                $script:store[$Uri] = $Body | ConvertFrom-Json
+                $script:store[$Uri].tags = $null
+                return $script:store[$Uri]
+            }
+            if ($Uri -like '*/connectors/listSecrets') {
+                $values = @($script:store.Keys | Where-Object { $_ -match '/connectors/' } | ForEach-Object { $script:store[$_] })
+                return [pscustomobject]@{ value = $values }
+            }
+            if ($script:store.ContainsKey($Uri)) {
+                $masked = $script:store[$Uri] | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+                $masked.tags = $null
+                $masked.properties.dataSource = $null
+                return $masked
+            }
+            return $null
+        } -ParameterFilter { $Uri -match '/connectors/' }
+
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets
+        Should -Invoke Invoke-AgentRequest -Times 8 -Exactly -ParameterFilter { $Method -eq 'PUT' }
     }
 
     It 'stops after a failed PUT without deploying dependent assets' {
@@ -242,7 +319,7 @@ Describe 'Owned asset convergence' {
         $script:written = $false
         Mock Invoke-AgentRequest { $script:written = $true } -ParameterFilter { $Method -eq 'PUT' }
         Mock Invoke-AgentRequest {
-            '{"name":"checkout-investigation","type":"Skill","tags":["managed-by:checkout-reliability-lab"],"properties":{}}' |
+            '{"name":"checkout-log-analytics","type":"AgentConnector","tags":["managed-by:checkout-reliability-lab"],"properties":{}}' |
                 ConvertFrom-Json
         } -ParameterFilter { $Method -eq 'GET' -and $script:written }
         { Sync-SreAgentAsset -Endpoint $script:endpoint -Headers @{} -Assets $script:assets } |
@@ -289,7 +366,7 @@ Describe 'Deployment discovery and identity boundaries' {
         Should -Invoke az -Times 1 -Exactly -ParameterFilter {
             $args -contains 'get-access-token' -and $args -contains 'https://azuresre.dev'
         }
-        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
+        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 8 }
     }
 
     It 'rejects an untrusted ARM endpoint before token acquisition' -ForEach @(
@@ -323,7 +400,7 @@ Describe 'Deployment discovery and identity boundaries' {
         $destination = Join-Path $TestDrive ('deploy-pkg-' + [Guid]::NewGuid().ToString('N'))
         $package = New-SreAgentAssetPackage -RepositoryRoot $script:root -DestinationPath $destination
         & $script:deploy -AgentName sre-checkout-test -PackagePath $package.PackagePath
-        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 3 }
+        Should -Invoke Sync-SreAgentAsset -Times 1 -Exactly -ParameterFilter { $Assets.Count -eq 8 }
         $missing = Join-Path $TestDrive 'nonexistent-package'
         { & $script:deploy -AgentName sre-checkout-test -PackagePath $missing } |
             Should -Throw '*package directory does not exist*'

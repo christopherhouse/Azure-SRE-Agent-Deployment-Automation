@@ -1,0 +1,35 @@
+{
+  "name": "checkout-slo-evaluator",
+  "type": "ExtendedAgentTool",
+  "contentFiles": {
+    "functionCode": "tool.py"
+  },
+  "properties": {
+    "type": "PythonFunctionTool",
+    "description": "Evaluates CheckoutServiceLogs_CL error rates and p95 latency against Checkout Lab SLO thresholds.",
+    "toolMode": "Auto",
+    "timeoutSeconds": 120,
+    "authEnabled": false,
+    "functionCode": "",
+    "parameters": [
+      {
+        "name": "total_requests",
+        "type": "integer",
+        "description": "Total checkout requests observed in the evaluation window.",
+        "required": true
+      },
+      {
+        "name": "failed_requests",
+        "type": "integer",
+        "description": "Failed checkout requests (HTTP 5xx or dependency timeout) in the evaluation window.",
+        "required": true
+      },
+      {
+        "name": "p95_latency_ms",
+        "type": "number",
+        "description": "Observed 95th percentile checkout latency in milliseconds.",
+        "required": true
+      }
+    ]
+  }
+}

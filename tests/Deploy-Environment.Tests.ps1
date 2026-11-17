@@ -137,14 +137,20 @@ Describe 'End-to-end environment and data-plane orchestration' {
             -SummaryPath $script:summaryPath)
 
         Test-Path -LiteralPath (Join-Path $script:environmentDir 'environment.tfplan') | Should -BeFalse
+        $output | Should -Contain 'Unchanged connectors/checkout-log-analytics'
+        $output | Should -Contain 'Unchanged connectors/monitor-client'
+        $output | Should -Contain 'Unchanged commonprompts/checkout-guardrails'
+        $output | Should -Contain 'Unchanged tools/checkout-slo-evaluator'
         $output | Should -Contain 'Unchanged skills/checkout-investigation'
+        $output | Should -Contain 'Unchanged hooks/checkout-audit-stop-hook'
         $output | Should -Contain 'Unchanged agents/checkout-investigator'
         $output | Should -Contain 'Unchanged scheduledtasks/checkout-daily-investigation'
 
         $calls = @(Get-Content -LiteralPath $script:tracePath)
         ($calls -join ' -> ') | Should -Be (
             'terraform:init -> terraform:validate -> terraform:plan -> terraform:apply -> terraform:output -> ' +
-            'az:agent -> az:workspace -> az:token -> http:GET -> http:GET -> http:GET'
+            'az:agent -> az:workspace -> az:token -> ' +
+            'http:GET -> http:GET -> http:GET -> http:GET -> http:GET -> http:GET -> http:GET -> http:GET'
         )
 
         Should -Invoke terraform -Times 1 -Exactly -ParameterFilter {
@@ -273,7 +279,7 @@ Describe 'End-to-end environment and data-plane orchestration' {
         Mock Invoke-WebRequest {
             return [pscustomobject]@{
                 StatusCode = 200
-                Content    = '{"name":"checkout-investigation","type":"Skill","tags":["unmanaged"],"properties":{}}'
+                Content    = '{"name":"checkout-log-analytics","type":"AgentConnector","tags":["unmanaged"],"properties":{}}'
             }
         }
         $beforePackages = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Directory -Filter 'sre-checkout-assets-*')
@@ -284,7 +290,7 @@ Describe 'End-to-end environment and data-plane orchestration' {
                 -StateKey 'checkout.tfstate' `
                 -Authentication GitHubOidc `
                 -SummaryPath $script:summaryPath
-        } | Should -Throw '*Refusing unmanaged or incompatible skills/checkout-investigation*'
+        } | Should -Throw '*Refusing unmanaged or incompatible connectors/checkout-log-analytics*'
 
         $afterPackages = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Directory -Filter 'sre-checkout-assets-*')
         $afterPackages.Count | Should -Be $beforePackages.Count
