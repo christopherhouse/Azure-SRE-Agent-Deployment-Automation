@@ -1,8 +1,24 @@
-# Phase 3: environment and Checkout Reliability Lab
+# 🏗️ Phase 3: Environment and Checkout Reliability Lab
+
+> **Navigation:** [🏠 README](../README.md) • [📜 Charter](project-charter.md) • [🗺️ Plan](implementation-plan.md) • [🥾 Phase 2: Bootstrap](bootstrap.md) • **🏗️ Phase 3: Environment** • [🧠 Phase 4: Data Plane](data-plane.md) • [🚀 Phase 5: Delivery](delivery.md) • [🔬 Phase 6: Demo](demonstration.md)
 
 The environment stack uses the bootstrap-owned resource group in West US 3.
 It never declares that group, the deployment identity, the state container, or
 the externally owned state account as managed resources.
+
+```mermaid
+flowchart LR
+    subgraph RG["☁️ rg-sre-checkout-westus3 (Looked up from Bootstrap)"]
+        CA["🛒 ca-sre-checkout<br/>Private Container App<br/>(Python 3.13 • 10s interval)"]
+        LAW["📊 law-sre-checkout<br/>Log Analytics Workspace<br/>(Local Auth Disabled)"]
+        UAMI["🪪 id-sre-checkout-monitoring<br/>User-Assigned Identity"]
+        SRE["🤖 Microsoft.App/agents<br/>sre-checkout-*<br/>(Review Mode)"]
+    end
+
+    CA -->|"Diagnostic Settings<br/>ContainerAppConsoleLogs"| LAW
+    UAMI -->|"RG Reader +<br/>LAW Reader"| LAW
+    UAMI -->|"Bound to Action &<br/>Knowledge Graph"| SRE
+```
 
 ## Architecture and ownership
 

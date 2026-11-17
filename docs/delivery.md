@@ -1,10 +1,32 @@
-# Phase 5: GitHub Actions delivery
+# 🚀 Phase 5: GitHub Actions Delivery
+
+> **Navigation:** [🏠 README](../README.md) • [📜 Charter](project-charter.md) • [🗺️ Plan](implementation-plan.md) • [🥾 Phase 2: Bootstrap](bootstrap.md) • [🏗️ Phase 3: Environment](environment.md) • [🧠 Phase 4: Data Plane](data-plane.md) • **🚀 Phase 5: Delivery** • [🔬 Phase 6: Demo](demonstration.md)
 
 Phase 5 connects the non-deploying PR checks from earlier phases to an automated,
 trusted `main`-only deployment workflow (`.github/workflows/deploy.yml`) and a
 shared PowerShell orchestrator (`scripts/Deploy-Environment.ps1`). Merging a
 reviewed PR to `main` converges both the Terraform environment stack and the
 PowerShell-owned SRE Agent data-plane assets without a manual approval gate.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as 👩‍💻 Contributor / PR
+    participant Checks as 🛡️ checks.yml (Cloud-Free)
+    participant Main as 🌿 main Branch (Protected)
+    participant Deploy as 🚀 deploy.yml (GitHub OIDC)
+    participant Azure as ☁️ Azure ARM + SRE Agent v2 API
+
+    Dev->>Checks: Open PR (chore/*, bugfix/*, feature/*)
+    Checks-->>Dev: 6 Static Jobs Pass (actionlint, gitleaks, terraform, Pester, Python)
+    Dev->>Main: Owner Merge Commit
+    Main->>Deploy: Trigger on push (Concurrency: sre-checkout-deployment)
+    Deploy->>Azure: 1. OIDC Login + Initialize Entra Blob Backend
+    Deploy->>Azure: 2. Terraform Validate, Plan & Apply (infra/environment)
+    Deploy->>Deploy: 3. Stage & Hash Asset Package (New-SreAgentAssetPackage)
+    Deploy->>Azure: 4. Reconcile 8 Assets Across All 7 Data-Plane Kinds (Deploy-Assets.ps1)
+    Deploy-->>Main: Write Non-Sensitive Step Summary & Clean Up Temp Files
+```
 
 ## Workflow boundaries and concurrency
 
@@ -109,14 +131,14 @@ Static and mocked evidence:
 - `actionlint`, `gitleaks`, `git diff --check`, and `terraform fmt`/`validate`
   pass across `infra/bootstrap`, `infra/environment`, and `.github/workflows/deploy.yml`.
 - Cloud-free Pester tests in `tests/DataPlane.Tests.ps1` and
-  `tests/Deploy-Environment.Tests.ps1` (49 total tests across the repository,
+  `tests/Deploy-Environment.Tests.ps1` (51 total tests across the repository,
   passing in both `pwsh` and Windows PowerShell 5.1) verify deterministic asset
   package staging, missing-file rejection, `-PackagePath` loading, ordered
   Terraform-to-data-plane orchestration, PR/non-`main` rejection in CI, plan and
   package directory cleanup on Terraform or data-plane failures, and summary
   generation.
 
-Live local and hosted evidence recorded **November 16, 2026**:
+Live local and hosted evidence recorded **November 16–17, 2026**:
 
 - `.\scripts\Bootstrap.ps1 -StateStorageAccountId ... -Apply -ConfigureGitHub`
   published `AZURE_OPERATOR_OBJECT_ID` to GitHub repository variables with zero
@@ -127,14 +149,17 @@ Live local and hosted evidence recorded **November 16, 2026**:
   `sre-checkout-da3a0ee8`), completing `terraform apply` with `0 added, 0
   changed, 0 destroyed`, staging the checkout asset package (sample SHA-256
   `a4b166146fc5ffc8770c427418a3112e29ab22c058c53f42a44dc754344bf188`), and
-  reporting `Unchanged` for `skills/checkout-investigation`,
-  `agents/checkout-investigator`, and
-  `scheduledtasks/checkout-daily-investigation`.
-- After the owner merged #6 (`ef75176`) to `main`, **Deploy checkout
-  environment** (`deploy.yml`, run `43942955764`) authenticated with GitHub OIDC
+  reconciling all eight discovered data-plane assets across all seven kinds.
+- After the owner merged #6 (`ef75176`), #8 (`f83765d`), and #9 (`fb12f13`) to
+  `main`, **Deploy checkout environment** (`deploy.yml`, runs `43942955764`,
+  `43967064256`, and `44111399839`) authenticated with GitHub OIDC
   (`repo:christopherhouse@748998/Azure-SRE-Agent-Deployment-Automation@1457055905:ref:refs/heads/main`),
   converged Terraform (`0 added, 0 changed, 0 destroyed`), and verified all
-  three SRE Agent data-plane assets (`Unchanged`) in 43 seconds while
-  serializing cleanly with `Verify keyless bootstrap` (`43942955681`).
+  eight SRE Agent data-plane assets (`connectors/checkout-log-analytics`,
+  `connectors/monitor-client`, `commonprompts/checkout-guardrails`,
+  `tools/checkout-slo-evaluator`, `skills/checkout-investigation`,
+  `hooks/checkout-audit-stop-hook`, `agents/checkout-investigator`, and
+  `scheduledtasks/checkout-daily-investigation`) while serializing cleanly with
+  `Verify keyless bootstrap` (`43942955681`).
 - See [demonstration.md](demonstration.md) for the Phase 6 live fault,
   investigation, and recovery walkthrough.

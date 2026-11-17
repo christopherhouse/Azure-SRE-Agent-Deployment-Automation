@@ -1,4 +1,6 @@
-# Phase 6: demonstration and operator handoff
+# 🔬 Phase 6: Demonstration and Operator Handoff
+
+> **Navigation:** [🏠 README](../README.md) • [📜 Charter](project-charter.md) • [🗺️ Plan](implementation-plan.md) • [🥾 Phase 2: Bootstrap](bootstrap.md) • [🏗️ Phase 3: Environment](environment.md) • [🧠 Phase 4: Data Plane](data-plane.md) • [🚀 Phase 5: Delivery](delivery.md) • **🔬 Phase 6: Demo**
 
 This guide walks an operator through the complete **Checkout Reliability Lab**
 lifecycle: prerequisites, one-time bootstrap, local and GitHub Actions
@@ -6,6 +8,26 @@ deployment, controlled fault injection, Log Analytics verification, live Azure
 SRE Agent investigation, scheduled-task automation, troubleshooting, cost
 drivers, and safe cleanup that preserves the externally owned state storage
 account.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Healthy_Initial: Deploy-Environment.ps1
+    Healthy_Initial --> Fault_Active: -FaultEnabled (Revision --0000003)
+    Fault_Active --> Investigated: checkout-investigator + KQL + SLO Tool
+    Investigated --> Healthy_Recovered: Omit -FaultEnabled (Revision --0000004)
+    Healthy_Recovered --> [*]
+
+    state Healthy_Initial {
+        [*] --> AllOrders42ms: 100% succeeded (42ms)
+    }
+    state Fault_Active {
+        [*] --> Every5thTimeout: 20% failed (PAYMENT_PROVIDER_TIMEOUT, 3000ms)
+    }
+    state Investigated {
+        [*] --> EvidenceReport: Cites RevisionName, SHA-256 & Operator Recovery
+    }
+```
 
 ## What is automated vs. manual or excluded
 
@@ -104,7 +126,7 @@ positionally.
 
 Terraform updates only `azapi_resource.checkout` (`CHECKOUT_FAULT_ENABLED` from
 `"false"` to `"true"`), creating a new Container App revision while leaving the
-SRE Agent and all three data-plane assets unchanged.
+SRE Agent and all eight data-plane assets across all seven kinds unchanged.
 
 ### Step 2: Confirm fault telemetry in Log Analytics
 
@@ -196,16 +218,18 @@ Confirm that:
   `error_code = null`.
 - Running `Deploy-Environment.ps1` a second time reports
   `Apply complete! Resources: 0 added, 0 changed, 0 destroyed.` and `Unchanged`
-  for all three data-plane assets.
+  for all eight data-plane assets.
 
 ## Live verification evidence (Phase 5 & Phase 6)
 
 ### Hosted CI/CD deployment on `main`
 
-After the owner merged PR #6 (`ef75176`) to `main` on **November 16, 2026**:
+After the owner merged PR #6 (`ef75176`), PR #8 (`f83765d`), and PR #9
+(`fb12f13`) to `main` on **November 16–17, 2026**:
 
-- **Deploy checkout environment** (`.github/workflows/deploy.yml`, run
-  `43942955764`) authenticated via GitHub OIDC (`id-sre-checkout-github`,
+- **Deploy checkout environment** (`.github/workflows/deploy.yml`, runs
+  `43942955764`, `43967064256`, and `44111399839`) authenticated via GitHub
+  OIDC (`id-sre-checkout-github`,
   subject
   `repo:christopherhouse@748998/Azure-SRE-Agent-Deployment-Automation@1457055905:ref:refs/heads/main`),
   initialized the Entra Blob backend (`satfstatecmhcus` / `sre-checkout` /
@@ -213,9 +237,12 @@ After the owner merged PR #6 (`ef75176`) to `main` on **November 16, 2026**:
   (`0 added, 0 changed, 0 destroyed`), staged the deterministic checkout asset
   package (sample SHA-256
   `a4b166146fc5ffc8770c427418a3112e29ab22c058c53f42a44dc754344bf188`), and
-  verified `Unchanged` across `skills/checkout-investigation`,
+  verified `Unchanged` across all eight data-plane assets
+  (`connectors/checkout-log-analytics`, `connectors/monitor-client`,
+  `commonprompts/checkout-guardrails`, `tools/checkout-slo-evaluator`,
+  `skills/checkout-investigation`, `hooks/checkout-audit-stop-hook`,
   `agents/checkout-investigator`, and
-  `scheduledtasks/checkout-daily-investigation` in 43 seconds.
+  `scheduledtasks/checkout-daily-investigation`).
 - **Verify keyless bootstrap** (`verify-bootstrap.yml`, run `43942955681`)
   serialized behind `deploy.yml` via the shared `sre-checkout-deployment`
   concurrency group and succeeded.
